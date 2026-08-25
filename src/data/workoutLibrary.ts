@@ -1,0 +1,228 @@
+import type { MovementPattern } from '@/utils/muscleRegions'
+
+/**
+ * Curated catalog of common exercises for the Workout Library — a browsable "starter
+ * set" independent of the user's own Exercise Manager entries. Muscle group names must
+ * match ExerciseForm's MUSCLE_GROUP_OPTIONS so the same badge colors and muscle-region
+ * mapping apply everywhere. `movementPattern` picks which rep-loop animation
+ * MuscleBodyDiagram plays for this entry.
+ */
+export interface LibraryWorkout {
+  id: string
+  name: string
+  description: string
+  targetSets: number
+  targetReps: number
+  targetMuscleGroups: string[]
+  movementPattern: MovementPattern
+}
+
+export const WORKOUT_LIBRARY: LibraryWorkout[] = [
+  {
+    id: 'barbell-bench-press',
+    name: 'Barbell Bench Press',
+    description: 'The classic horizontal press for raw chest and pressing strength.',
+    targetSets: 4,
+    targetReps: 8,
+    targetMuscleGroups: ['Chest', 'Triceps', 'Shoulders'],
+    movementPattern: 'press',
+  },
+  {
+    id: 'incline-dumbbell-press',
+    name: 'Incline Dumbbell Press',
+    description: 'Presses on an incline bench to emphasize the upper chest.',
+    targetSets: 3,
+    targetReps: 10,
+    targetMuscleGroups: ['Chest', 'Shoulders', 'Triceps'],
+    movementPattern: 'press',
+  },
+  {
+    id: 'push-up',
+    name: 'Push-Up',
+    description: 'Bodyweight press that doubles as a core stability exercise.',
+    targetSets: 3,
+    targetReps: 15,
+    targetMuscleGroups: ['Chest', 'Triceps', 'Core'],
+    movementPattern: 'press',
+  },
+  {
+    id: 'overhead-press',
+    name: 'Overhead Press',
+    description: 'Standing barbell press for building shoulder strength and stability.',
+    targetSets: 4,
+    targetReps: 8,
+    targetMuscleGroups: ['Shoulders', 'Triceps'],
+    movementPattern: 'press',
+  },
+  {
+    id: 'lateral-raise',
+    name: 'Lateral Raise',
+    description: 'Dumbbell isolation move that widens the shoulders.',
+    targetSets: 3,
+    targetReps: 15,
+    targetMuscleGroups: ['Shoulders'],
+    movementPattern: 'raise',
+  },
+  {
+    id: 'pull-up',
+    name: 'Pull-Up',
+    description: 'Vertical pulling staple for a wider, stronger back.',
+    targetSets: 4,
+    targetReps: 8,
+    targetMuscleGroups: ['Back', 'Biceps', 'Forearms'],
+    movementPattern: 'row',
+  },
+  {
+    id: 'bent-over-row',
+    name: 'Bent-Over Row',
+    description: 'Horizontal pull that builds thickness through the mid-back.',
+    targetSets: 4,
+    targetReps: 10,
+    targetMuscleGroups: ['Back', 'Biceps'],
+    movementPattern: 'row',
+  },
+  {
+    id: 'lat-pulldown',
+    name: 'Lat Pulldown',
+    description: 'Cable alternative to pull-ups, easier to load progressively.',
+    targetSets: 3,
+    targetReps: 12,
+    targetMuscleGroups: ['Back', 'Biceps'],
+    movementPattern: 'row',
+  },
+  {
+    id: 'deadlift',
+    name: 'Deadlift',
+    description: 'Full posterior-chain lift and one of the best overall strength builders.',
+    targetSets: 4,
+    targetReps: 5,
+    targetMuscleGroups: ['Back', 'Hamstrings', 'Glutes', 'Forearms'],
+    movementPattern: 'lean',
+  },
+  {
+    id: 'barbell-curl',
+    name: 'Barbell Curl',
+    description: 'Straight-bar curl for overall bicep mass.',
+    targetSets: 3,
+    targetReps: 12,
+    targetMuscleGroups: ['Biceps'],
+    movementPattern: 'curl',
+  },
+  {
+    id: 'hammer-curl',
+    name: 'Hammer Curl',
+    description: 'Neutral-grip curl that also brings the forearms into play.',
+    targetSets: 3,
+    targetReps: 12,
+    targetMuscleGroups: ['Biceps', 'Forearms'],
+    movementPattern: 'curl',
+  },
+  {
+    id: 'tricep-dip',
+    name: 'Tricep Dip',
+    description: 'Bodyweight press on parallel bars, heavy on the triceps and lower chest.',
+    targetSets: 3,
+    targetReps: 12,
+    targetMuscleGroups: ['Triceps', 'Chest'],
+    movementPattern: 'press',
+  },
+  {
+    id: 'tricep-pushdown',
+    name: 'Tricep Pushdown',
+    description: 'Cable isolation move that keeps constant tension on the triceps.',
+    targetSets: 3,
+    targetReps: 15,
+    targetMuscleGroups: ['Triceps'],
+    movementPattern: 'curl',
+  },
+  {
+    id: 'back-squat',
+    name: 'Back Squat',
+    description: 'The foundational lower-body lift for strength and size.',
+    targetSets: 4,
+    targetReps: 8,
+    targetMuscleGroups: ['Quadriceps', 'Glutes', 'Core'],
+    movementPattern: 'bob',
+  },
+  {
+    id: 'leg-press',
+    name: 'Leg Press',
+    description: 'Machine-based squat pattern that is easier to load safely to failure.',
+    targetSets: 4,
+    targetReps: 10,
+    targetMuscleGroups: ['Quadriceps', 'Hamstrings', 'Glutes'],
+    movementPattern: 'bob',
+  },
+  {
+    id: 'walking-lunge',
+    name: 'Walking Lunge',
+    description: 'Unilateral leg exercise that also challenges balance and core.',
+    targetSets: 3,
+    targetReps: 12,
+    targetMuscleGroups: ['Quadriceps', 'Glutes', 'Hamstrings'],
+    movementPattern: 'bob',
+  },
+  {
+    id: 'romanian-deadlift',
+    name: 'Romanian Deadlift',
+    description: 'Hip-hinge movement that targets the hamstrings and glutes with a stretch.',
+    targetSets: 3,
+    targetReps: 10,
+    targetMuscleGroups: ['Hamstrings', 'Glutes', 'Back'],
+    movementPattern: 'lean',
+  },
+  {
+    id: 'hip-thrust',
+    name: 'Hip Thrust',
+    description: 'Barbell glute bridge variation for direct glute strength.',
+    targetSets: 4,
+    targetReps: 10,
+    targetMuscleGroups: ['Glutes', 'Hamstrings'],
+    movementPattern: 'bridge',
+  },
+  {
+    id: 'box-jump',
+    name: 'Box Jump',
+    description: 'Explosive plyometric jump that works the entire lower body at once.',
+    targetSets: 3,
+    targetReps: 8,
+    targetMuscleGroups: ['Legs', 'Core'],
+    movementPattern: 'bob',
+  },
+  {
+    id: 'standing-calf-raise',
+    name: 'Standing Calf Raise',
+    description: 'Simple, effective isolation move for calf size and ankle strength.',
+    targetSets: 4,
+    targetReps: 15,
+    targetMuscleGroups: ['Calves'],
+    movementPattern: 'rise',
+  },
+  {
+    id: 'plank',
+    name: 'Plank',
+    description: 'Isometric hold that builds core endurance and bracing strength.',
+    targetSets: 3,
+    targetReps: 1,
+    targetMuscleGroups: ['Core'],
+    movementPattern: 'pulse',
+  },
+  {
+    id: 'russian-twist',
+    name: 'Russian Twist',
+    description: 'Rotational core exercise targeting the obliques.',
+    targetSets: 3,
+    targetReps: 20,
+    targetMuscleGroups: ['Core'],
+    movementPattern: 'twist',
+  },
+  {
+    id: 'wrist-curl',
+    name: 'Wrist Curl',
+    description: 'Direct forearm isolation for grip strength.',
+    targetSets: 3,
+    targetReps: 15,
+    targetMuscleGroups: ['Forearms'],
+    movementPattern: 'curl',
+  },
+]
