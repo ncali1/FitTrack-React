@@ -1,0 +1,349 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * FitTrack is dark-only (no light/dark toggle), so the shadcn semantic tokens below are
+ * defined once in :root with FitTrack's dark values directly — there is no separate
+ * `.dark` override block.
+ */
+@theme inline {
+  --font-heading: var(--font-sans);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* FitTrack's own named palette — used directly by the ported .card, .btn-, and .badge- classes below. */
+@theme {
+  --color-canvas: #0a0b0f;
+  --color-canvas-950: #050508;
+  --color-canvas-900: #0a0b0f;
+  --color-canvas-800: #121319;
+  --color-canvas-700: #181a22;
+
+  --color-surface: #15171f;
+  --color-surface-hover: #1c1e28;
+  --color-surface-border: #262835;
+
+  --color-accent: #ff5a2b;
+  --color-accent-50: #fff1ec;
+  --color-accent-100: #ffe0d3;
+  --color-accent-400: #ff7a4d;
+  --color-accent-500: #ff5a2b;
+  --color-accent-600: #ea4413;
+  --color-accent-700: #c2340c;
+
+  --color-lime: #c6ff5e;
+  --color-lime-400: #d4ff85;
+  --color-lime-500: #c6ff5e;
+  --color-lime-600: #a3e639;
+
+  --color-ink: #f5f6f8;
+  --color-ink-muted: #9a9ea9;
+  --color-ink-faint: #656975;
+
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 0 1px rgba(255, 90, 43, 0.4), 0 0 24px -4px rgba(255, 90, 43, 0.5);
+  --radius-xl2: 1.25rem;
+}
+
+/* Character keyframes — used by the .animate-* utilities below */
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.92) translateY(10px); }
+  60% { opacity: 1; transform: scale(1.02) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes check-bounce {
+  0% { transform: scale(0.5) rotate(-8deg); }
+  55% { transform: scale(1.2) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes celebrate-in {
+  0% { opacity: 0; transform: scale(0.7) translateY(-10px) rotate(-3deg); }
+  55% { opacity: 1; transform: scale(1.06) translateY(0) rotate(1.5deg); }
+  100% { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); }
+}
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+/*
+ * Muscle-diagram rep-loop keyframes — used by MuscleBodyDiagram to turn the static body
+ * silhouette into a short, looping "video-like" preview of the movement. Each targets a
+ * specific SVG <g>/shape (a whole limb, a forearm-only sub-group hinged at the elbow, or
+ * a single highlighted region) rather than the whole figure, except bob/lean/rise/twist
+ * which move the entire figure together.
+ */
+@keyframes anim-press { 0%, 100% { transform: translateY(10px); } 50% { transform: translateY(-14px); } }
+@keyframes anim-row-left { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(14px); } }
+@keyframes anim-row-right { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-14px); } }
+@keyframes anim-raise-left { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-45deg); } }
+@keyframes anim-raise-right { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(45deg); } }
+@keyframes anim-curl-left { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(60deg); } }
+@keyframes anim-curl-right { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-60deg); } }
+@keyframes anim-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(12px); } }
+@keyframes anim-lean { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(20deg); } }
+@keyframes anim-bridge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes anim-rise { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes anim-pulse-part { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+@keyframes anim-twist { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-14deg); } 75% { transform: rotate(14deg); } }
+
+.anim-press { transform-box: fill-box; animation: anim-press 1.6s ease-in-out infinite; }
+.anim-row-left { transform-box: fill-box; animation: anim-row-left 1.6s ease-in-out infinite; }
+.anim-row-right { transform-box: fill-box; animation: anim-row-right 1.6s ease-in-out infinite; }
+.anim-raise-left { transform-box: fill-box; transform-origin: 50% 0%; animation: anim-raise-left 1.6s ease-in-out infinite; }
+.anim-raise-right { transform-box: fill-box; transform-origin: 50% 0%; animation: anim-raise-right 1.6s ease-in-out infinite; }
+.anim-curl-left { transform-box: fill-box; transform-origin: 50% 0%; animation: anim-curl-left 1.6s ease-in-out infinite; }
+.anim-curl-right { transform-box: fill-box; transform-origin: 50% 0%; animation: anim-curl-right 1.6s ease-in-out infinite; }
+.anim-bob { transform-box: fill-box; animation: anim-bob 1.6s ease-in-out infinite; }
+.anim-lean { transform-box: fill-box; transform-origin: 50% 100%; animation: anim-lean 1.6s ease-in-out infinite; }
+.anim-bridge { transform-box: fill-box; animation: anim-bridge 1.6s ease-in-out infinite; }
+.anim-rise { transform-box: fill-box; animation: anim-rise 1.6s ease-in-out infinite; }
+.anim-pulse-part { transform-box: fill-box; transform-origin: 50% 50%; animation: anim-pulse-part 1.6s ease-in-out infinite; }
+.anim-twist { transform-box: fill-box; transform-origin: 50% 50%; animation: anim-twist 2s ease-in-out infinite; }
+
+/*
+ * Pseudo-3D turntable — pure CSS, no model/asset: a flat SVG figure tilted in a
+ * perspective space and gently rotated on its Y axis, like a product shot on a slow
+ * turntable. Combined with the glossy radial-gradient fills below (light source top-left,
+ * darker toward the edge) this reads as genuine rounded volume rather than a flat cutout.
+ * Lives on the <svg> root itself — nested pattern animations (anim-*) apply their own 2D
+ * transforms to inner <g>s and compose naturally inside this tilted 3D space.
+ */
+@keyframes tilt3d-spin {
+  0%, 100% { transform: rotateY(-16deg) rotateX(4deg); }
+  50% { transform: rotateY(16deg) rotateX(4deg); }
+}
+.tilt3d-figure {
+  transform-style: preserve-3d;
+  animation: tilt3d-spin 4.5s ease-in-out infinite;
+}
+
+/* Respect the OS-level motion preference — freeze every rep-loop and turntable spin to its resting pose. */
+@media (prefers-reduced-motion: reduce) {
+  [class*="anim-"], .tilt3d-figure { animation: none !important; }
+}
+
+:root {
+  --background: #0a0b0f;
+  --foreground: #f5f6f8;
+  --card: #15171f;
+  --card-foreground: #f5f6f8;
+  --popover: #15171f;
+  --popover-foreground: #f5f6f8;
+  --primary: #ff5a2b;
+  --primary-foreground: #ffffff;
+  --secondary: #1c1e28;
+  --secondary-foreground: #f5f6f8;
+  --muted: #1c1e28;
+  --muted-foreground: #9a9ea9;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #262835;
+  --input: #262835;
+  --ring: #ff5a2b;
+  --radius: 0.625rem;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-canvas text-ink font-sans antialiased;
+  background-color: #0a0b0f;
+}
+
+/*
+ * Ambient color glow lives on a fixed pseudo-layer behind all real content, not on
+ * `body` itself — that's what lets it slowly cycle through hues via `hue-rotate`
+ * without shifting the color of any actual text/UI (a `filter` on `body` would apply
+ * to every descendant, not just the background). The three glows share one rotation
+ * so they cycle together as a set (orange -> violet -> cyan -> back to orange) rather
+ * than drifting independently, which would read as noisy instead of alive.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(85% 75% at 5% -10%, rgba(255, 90, 43, 0.5) 0%, transparent 78%),
+    radial-gradient(90% 80% at 110% 5%, rgba(139, 92, 246, 0.42) 0%, transparent 78%),
+    radial-gradient(95% 85% at 90% 110%, rgba(34, 211, 238, 0.32) 0%, transparent 78%),
+    radial-gradient(120% 140% at 50% -10%, #21232f 0%, #0a0b0f 62%);
+  animation: glow-hue-cycle 24s linear infinite;
+}
+
+@keyframes glow-hue-cycle {
+  to { filter: hue-rotate(360deg); }
+}
+
+h1 { @apply text-2xl font-bold tracking-tight; }
+h2 { @apply text-xl font-bold tracking-tight; }
+h3 { @apply text-base font-semibold; }
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  h1, h2, h3 {
+    color: #f5f6f8;
+  }
+}
+
+#root {
+  @apply min-h-screen;
+}
+
+/* Safe-area padding for installed PWA (notches / home indicators) */
+.pwa-safe-top { padding-top: env(safe-area-inset-top); }
+.pwa-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Hide scrollbars on horizontally-scrollable rows but keep them functional */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Character: motion utilities ─────────────────────────────────────────── */
+.animate-pop-in { animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-check-bounce { animation: check-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-celebrate-in { animation: celebrate-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-float { animation: float-y 3s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 6s linear infinite; }
+
+/* Staggers a list's pop-in via nth-child delays — apply alongside .animate-pop-in */
+.stagger-children > * { animation-fill-mode: both; }
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 40ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(n+7) { animation-delay: 240ms; }
+
+/* Hoverable card lift — layer onto .card / .card-pad where a card is clickable */
+.card-hover {
+  @apply transition-all duration-200 ease-out hover:-translate-y-1 hover:border-ink-faint/50 hover:shadow-[0_4px_2px_rgba(0,0,0,0.4),0_16px_32px_-8px_rgba(0,0,0,0.6)];
+}
+
+/* Soft colorful circle behind an empty-state emoji/icon — the "illustration" treatment */
+.empty-blob {
+  @apply w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-4xl;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 90, 43, 0.22), rgba(139, 92, 246, 0.14) 55%, transparent 80%);
+}
+
+@layer components {
+  /* Surfaces */
+  .card {
+    @apply bg-surface border border-surface-border rounded-2xl shadow-card;
+  }
+  .card-pad {
+    @apply bg-surface border border-surface-border rounded-2xl shadow-card p-5;
+  }
+  .stat-tile {
+    @apply bg-surface border border-surface-border rounded-2xl shadow-card p-5 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5;
+  }
+  .stat-tile-accent {
+    @apply rounded-2xl shadow-card p-5 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5 border border-accent-500/30;
+    background: linear-gradient(150deg, rgba(255, 90, 43, 0.16), rgba(255, 90, 43, 0.03) 60%);
+  }
+  .stat-tile-lime {
+    @apply rounded-2xl shadow-card p-5 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5 border border-lime-500/30;
+    background: linear-gradient(150deg, rgba(198, 255, 94, 0.14), rgba(198, 255, 94, 0.02) 60%);
+  }
+  .stat-tile-violet {
+    @apply rounded-2xl shadow-card p-5 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5 border border-violet-500/30;
+    background: linear-gradient(150deg, rgba(139, 92, 246, 0.16), rgba(139, 92, 246, 0.03) 60%);
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97];
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] bg-accent text-white hover:bg-accent-400 hover:-translate-y-0.5 shadow-[0_4px_16px_-4px_rgba(255,90,43,0.6)] hover:shadow-[0_8px_20px_-4px_rgba(255,90,43,0.7)];
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] bg-surface-hover text-ink border border-surface-border hover:border-ink-faint;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] bg-transparent text-ink-muted hover:text-ink hover:bg-surface-hover;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25;
+  }
+  .btn-icon {
+    @apply inline-flex items-center justify-center w-10 h-10 rounded-xl text-ink-muted hover:text-ink hover:bg-surface-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400;
+  }
+
+  /* Forms */
+  .field-label {
+    @apply block text-xs font-semibold uppercase tracking-wide text-ink-muted mb-1.5;
+  }
+  .field-input {
+    @apply w-full px-3.5 py-2.5 rounded-xl bg-canvas-800 border border-surface-border text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-colors;
+  }
+  .field-error {
+    @apply text-red-400 text-xs mt-1.5;
+  }
+
+  /* Badges / chips */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold;
+  }
+  .badge-lime { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-lime-500/15 text-lime-500; }
+  .badge-accent { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-accent-500/15 text-accent-400; }
+  .badge-muted { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-surface-hover text-ink-muted; }
+  .badge-warn { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400; }
+  .badge-danger { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/15 text-red-400; }
+  .badge-violet { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-400; }
+  .badge-cyan { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-500/15 text-cyan-400; }
+  .badge-pink { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-pink-500/15 text-pink-400; }
+
+  /* Modal */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-[60] p-0 sm:p-4;
+  }
+  .modal-panel {
+    @apply bg-surface border border-surface-border shadow-card w-full sm:max-w-md rounded-t-2xl rounded-b-none sm:rounded-2xl max-h-[92vh] overflow-y-auto;
+  }
+
+  /* Alert banner */
+  .alert-error {
+    @apply bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center justify-between gap-3;
+  }
+
+  /* Section heading row */
+  .section-header {
+    @apply flex items-center justify-between gap-3;
+  }
+}
