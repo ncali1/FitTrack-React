@@ -42,7 +42,7 @@ export function RestTimer() {
             cy="28"
             r={RADIUS}
             fill="none"
-            stroke="#ff5a2b"
+            stroke="#03ac8f"
             strokeWidth="5"
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}

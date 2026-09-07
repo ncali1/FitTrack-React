@@ -55,6 +55,21 @@ describe('useExercisesStore', () => {
         'At least one muscle group must be selected'
       )
     })
+
+    it('saves trimmed notes when provided', async () => {
+      const exercise = await useExercisesStore
+        .getState()
+        .createExercise('Bench Press', 3, 10, ['Chest'], '  Keep elbows tucked  ')
+      expect(exercise.notes).toBe('Keep elbows tucked')
+    })
+
+    it('omits notes entirely when not provided or blank', async () => {
+      const withoutNotes = await useExercisesStore.getState().createExercise('Bench Press', 3, 10, ['Chest'])
+      expect(withoutNotes.notes).toBeUndefined()
+
+      const withBlankNotes = await useExercisesStore.getState().createExercise('Squat', 3, 10, ['Legs'], '   ')
+      expect(withBlankNotes.notes).toBeUndefined()
+    })
   })
 
   describe('Editing exercises', () => {
@@ -85,6 +100,30 @@ describe('useExercisesStore', () => {
       await expect(useExercisesStore.getState().updateExercise('missing-id', { name: 'X' })).rejects.toThrow(
         'Exercise not found'
       )
+    })
+
+    it('adds notes to an exercise that had none', async () => {
+      const { createExercise, updateExercise } = useExercisesStore.getState()
+      const exercise = await createExercise('Bench Press', 3, 10, ['Chest'])
+
+      const updated = await updateExercise(exercise.id, { notes: 'Pause at the bottom' })
+      expect(updated.notes).toBe('Pause at the bottom')
+    })
+
+    it('clears notes when updated to an empty string', async () => {
+      const { createExercise, updateExercise } = useExercisesStore.getState()
+      const exercise = await createExercise('Bench Press', 3, 10, ['Chest'], 'Pause at the bottom')
+
+      const updated = await updateExercise(exercise.id, { notes: '' })
+      expect(updated.notes).toBeUndefined()
+    })
+
+    it('leaves notes untouched when the update omits the field entirely', async () => {
+      const { createExercise, updateExercise } = useExercisesStore.getState()
+      const exercise = await createExercise('Bench Press', 3, 10, ['Chest'], 'Pause at the bottom')
+
+      const updated = await updateExercise(exercise.id, { targetSets: 5 })
+      expect(updated.notes).toBe('Pause at the bottom')
     })
   })
 

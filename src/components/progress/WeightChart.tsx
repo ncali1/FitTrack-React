@@ -50,9 +50,9 @@ export function WeightChart({ data, exerciseName }: { data: WeeklyDataPoint[]; e
                 {
                   label: `${exerciseName} - Weight (${weightUnit})`,
                   data: data.map((d) => fromKg(d.averageWeight, weightUnit)),
-                  borderColor: '#c6ff5e',
-                  backgroundColor: 'rgba(198, 255, 94, 0.12)',
-                  pointBackgroundColor: '#c6ff5e',
+                  borderColor: '#03ac8f',
+                  backgroundColor: 'rgba(3, 172, 143, 0.12)',
+                  pointBackgroundColor: '#03ac8f',
                   pointBorderColor: '#0a0b0f',
                   pointRadius: 4,
                   pointHoverRadius: 6,

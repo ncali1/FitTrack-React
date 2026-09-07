@@ -8,6 +8,7 @@ export interface ChecklistItem {
   targetSets: number
   targetReps: number
   targetMuscleGroups: string[]
+  notes?: string
   completed: boolean
   performance?: ExercisePerformance
   /** True when this logged performance currently holds the exercise's all-time max weight. */
@@ -85,6 +86,7 @@ export function ChecklistItems({
               {item.targetSets} sets × {item.targetReps} reps
               {item.targetMuscleGroups.length > 0 && <span className="ml-1">· {item.targetMuscleGroups.join(', ')}</span>}
             </div>
+            {item.notes && <div className="text-xs text-ink-faint mt-1 line-clamp-1">📝 {item.notes}</div>}
             {/* Logged performance summary */}
             {item.completed && item.performance && (
               <div className="text-xs text-accent-400 mt-1.5 font-medium flex items-center gap-1.5 flex-wrap">
@@ -94,6 +96,7 @@ export function ChecklistItems({
                     <> @ {formatWeight(item.performance.weight, weightUnit)}{weightUnit}</>
                   )}{' '}
                   · {item.performance.difficultyLevel}
+                  {item.performance.rpe != null && <> · RPE {item.performance.rpe}</>}
                 </span>
                 {(item.isWeightPR || item.isRepsPR) && <span className="badge-lime !py-0.5">🏆 PR</span>}
               </div>

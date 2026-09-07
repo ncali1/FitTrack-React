@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { FormEvent } from 'react'
 import { toast } from 'sonner'
 import { useExercisesStore } from '@/stores/exercises'
@@ -11,6 +12,7 @@ interface FormData {
   targetSets: number
   targetReps: number
   targetMuscleGroups: string[]
+  notes: string
 }
 
 type FormErrors = Partial<Record<keyof FormData, string>>
@@ -32,7 +34,7 @@ export const MUSCLE_GROUP_OPTIONS = [
 ]
 
 function blankForm(): FormData {
-  return { name: '', targetSets: 3, targetReps: 10, targetMuscleGroups: [] }
+  return { name: '', targetSets: 3, targetReps: 10, targetMuscleGroups: [], notes: '' }
 }
 
 function toFormData(exercise: Exercise): FormData {
@@ -41,6 +43,7 @@ function toFormData(exercise: Exercise): FormData {
     targetSets: exercise.targetSets,
     targetReps: exercise.targetReps,
     targetMuscleGroups: [...exercise.targetMuscleGroups],
+    notes: exercise.notes ?? '',
   }
 }
 
@@ -112,10 +115,17 @@ export function ExerciseForm({
           targetSets: form.targetSets,
           targetReps: form.targetReps,
           targetMuscleGroups: [...form.targetMuscleGroups],
+          notes: form.notes.trim() || undefined,
         })
         toast.success(`${updated.name} updated`)
       } else {
-        const created = await createExercise(form.name, form.targetSets, form.targetReps, [...form.targetMuscleGroups])
+        const created = await createExercise(
+          form.name,
+          form.targetSets,
+          form.targetReps,
+          [...form.targetMuscleGroups],
+          form.notes
+        )
         toast.success(`${created.name} created`)
       }
 
@@ -128,7 +138,10 @@ export function ExerciseForm({
     }
   }
 
-  return (
+  // Portaled to <body> — an ancestor tab-content wrapper has a lingering `transform`
+  // (from its entrance animation's fill-mode) which creates a containing block for
+  // `position: fixed` descendants, the same class of issue TopBar's backdrop-blur has.
+  return createPortal(
     <div
       className="modal-overlay"
       onClick={(e) => {
@@ -224,6 +237,21 @@ export function ExerciseForm({
               {errors.targetMuscleGroups && <p className="field-error">{errors.targetMuscleGroups}</p>}
             </div>
 
+            {/* Notes Field */}
+            <div>
+              <label htmlFor="notes" className="field-label">
+                Notes <span className="text-ink-faint normal-case font-normal">optional</span>
+              </label>
+              <textarea
+                id="notes"
+                value={form.notes}
+                onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Form cues, a video link, anything worth remembering"
+                rows={2}
+                className="field-input resize-none"
+              />
+            </div>
+
             {/* Submit Error Banner */}
             {submitError && (
               <div className="alert-error">
@@ -251,6 +279,7 @@ export function ExerciseForm({
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

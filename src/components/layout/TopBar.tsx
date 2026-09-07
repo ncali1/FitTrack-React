@@ -46,7 +46,7 @@ export function TopBar() {
         <div className="flex items-center justify-between h-16 gap-3">
           {/* Brand */}
           <div className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center shadow-[0_4px_16px_-4px_rgba(255,90,43,0.7)]">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center shadow-[0_4px_16px_-4px_rgba(3,172,143,0.7)]">
               <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
                 <path d="M20.57 14.86 22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z" />
               </svg>
@@ -64,7 +64,7 @@ export function TopBar() {
                 aria-current={activeTab === tab.id ? 'page' : undefined}
                 className={
                   activeTab === tab.id
-                    ? 'px-3 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 bg-accent-500 text-white shadow-[0_4px_16px_-4px_rgba(255,90,43,0.6)]'
+                    ? 'px-3 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 bg-accent-500/15 text-accent-400'
                     : 'px-3 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 text-ink-muted hover:text-ink hover:bg-surface-hover'
                 }
               >

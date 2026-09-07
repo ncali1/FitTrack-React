@@ -76,6 +76,7 @@ export function ExerciseHistory({ exerciseId }: { exerciseId: string }) {
                 {entry.difficultyLevel && (
                   <span className={DIFFICULTY_BADGE[entry.difficultyLevel]}>{entry.difficultyLevel}</span>
                 )}
+                {entry.rpe != null && <span className="badge-muted">RPE {entry.rpe}</span>}
                 {isPersonalRecord(entry) && <span className="badge-accent">🏆 PR</span>}
               </div>
             </li>

@@ -1,227 +1,102 @@
-import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
-import { Pencil, X } from 'lucide-react'
-import { useRoutineStore, selectRoutineForDay } from '@/stores/routine'
-import type { Routine } from '@/types'
-import { WeeklyGrid } from './WeeklyGrid'
-import { ExerciseSelector } from './ExerciseSelector'
+import { useState } from 'react'
+import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
+import { useRoutineStore, selectActiveRoutine } from '@/stores/routine'
+import { useExercisesStore } from '@/stores/exercises'
+import { DayPlanCard } from './DayPlanCard'
+
+const DAYS = [
+  { key: 'monday', label: 'Monday' },
+  { key: 'tuesday', label: 'Tuesday' },
+  { key: 'wednesday', label: 'Wednesday' },
+  { key: 'thursday', label: 'Thursday' },
+  { key: 'friday', label: 'Friday' },
+  { key: 'saturday', label: 'Saturday' },
+  { key: 'sunday', label: 'Sunday' },
+]
 
 /**
- * Allows the user to build a weekly workout routine by assigning exercises to specific
- * days, and to manage multiple saved routines/programs (e.g. push/pull/legs, 5x5) —
- * switching, creating, renaming, and deleting them. Composes WeeklyGrid (for day
- * selection) with ExerciseSelector (for add/remove operations); all of that operates on
- * whichever routine is currently active, transparently, via the routine store.
+ * Full-screen "Weekly plan" editor: one expandable card per day of the week, each
+ * showing its currently assigned exercises as removable chips and, when expanded, a
+ * toggle-grid of the whole exercise library to add more. Always edits the active
+ * routine — switching *which* routine is active happens in Profile, one level up.
  */
-export function RoutineBuilder() {
+export function RoutineBuilder({ onClose }: { onClose: () => void }) {
   const routines = useRoutineStore((s) => s.routines)
-  const routineLoading = useRoutineStore((s) => s.loading)
-  const routineError = useRoutineStore((s) => s.error)
+  const activeRoutine = selectActiveRoutine(routines)
   const assignExercise = useRoutineStore((s) => s.assignExercise)
   const removeExercise = useRoutineStore((s) => s.removeExercise)
-  const saveRoutineAction = useRoutineStore((s) => s.saveRoutine)
-  const loadRoutines = useRoutineStore((s) => s.loadRoutines)
-  const createRoutine = useRoutineStore((s) => s.createRoutine)
-  const renameRoutine = useRoutineStore((s) => s.renameRoutine)
-  const deleteRoutine = useRoutineStore((s) => s.deleteRoutine)
-  const setActiveRoutine = useRoutineStore((s) => s.setActiveRoutine)
+  const exercises = useExercisesStore((s) => s.exercises)
 
+  const [expandedDay, setExpandedDay] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectedDay, setSelectedDay] = useState('monday')
 
-  const [showNameForm, setShowNameForm] = useState(false)
-  const [renamingId, setRenamingId] = useState<string | null>(null)
-  const [nameInput, setNameInput] = useState('')
-
-  useEffect(() => {
-    loadRoutines().catch((err) => {
-      console.error('Failed to load routines:', err)
-      setError('Failed to load routines. Please refresh the page.')
-    })
-  }, [loadRoutines])
-
-  const handleAddExercise = async (exerciseId: string) => {
+  const handleAdd = async (day: string, exerciseId: string) => {
     try {
-      await assignExercise(selectedDay, exerciseId)
+      await assignExercise(day, exerciseId)
     } catch (err) {
       console.error('Failed to add exercise:', err)
-      setError('Failed to add exercise to routine. Please try again.')
+      setError('Failed to add exercise. Please try again.')
     }
   }
 
-  const handleRemoveExercise = async (exerciseId: string) => {
+  const handleRemove = async (day: string, exerciseId: string) => {
     try {
-      await removeExercise(selectedDay, exerciseId)
+      await removeExercise(day, exerciseId)
     } catch (err) {
       console.error('Failed to remove exercise:', err)
-      setError('Failed to remove exercise from routine. Please try again.')
+      setError('Failed to remove exercise. Please try again.')
     }
   }
 
-  const handleSaveRoutine = async () => {
-    try {
-      await saveRoutineAction()
-    } catch (err) {
-      console.error('Failed to save routine:', err)
-      setError('Failed to save routine. Please try again.')
-    }
-  }
+  return createPortal(
+    // z-55, deliberately below .modal-overlay's z-60 — DayPlanCard doesn't open a modal
+    // itself, but staying under that threshold keeps this sheet consistent with
+    // ExerciseManagerSheet, which does.
+    <div className="fixed inset-0 z-[55] bg-canvas flex flex-col">
+      <div className="flex-none pwa-safe-top flex items-center justify-between px-5 py-4 border-b border-surface-border">
+        <h3 className="text-ink">Weekly plan</h3>
+        <button onClick={onClose} className="btn-icon" aria-label="Close">
+          <X size={18} strokeWidth={2} />
+        </button>
+      </div>
 
-  const handleResetRoutine = () => {
-    loadRoutines()
-  }
-
-  const openCreateForm = () => {
-    setRenamingId(null)
-    setNameInput('')
-    setShowNameForm(true)
-  }
-
-  const openRenameForm = (r: Routine) => {
-    setRenamingId(r.id)
-    setNameInput(r.name)
-    setShowNameForm(true)
-  }
-
-  const cancelNameForm = () => setShowNameForm(false)
-
-  const submitName = async (e: FormEvent) => {
-    e.preventDefault()
-    const name = nameInput.trim()
-    if (!name) return
-
-    try {
-      if (renamingId) {
-        await renameRoutine(renamingId, name)
-      } else {
-        const created = await createRoutine(name)
-        await setActiveRoutine(created.id)
-      }
-      setShowNameForm(false)
-    } catch (err) {
-      console.error('Failed to save routine name:', err)
-      setError('Failed to save routine. Please try again.')
-    }
-  }
-
-  const switchRoutine = async (id: string) => {
-    try {
-      await setActiveRoutine(id)
-    } catch (err) {
-      console.error('Failed to switch routine:', err)
-      setError('Failed to switch routine. Please try again.')
-    }
-  }
-
-  const handleDeleteRoutine = async (id: string) => {
-    if (!confirm('Delete this routine? This cannot be undone.')) return
-    try {
-      await deleteRoutine(id)
-    } catch (err) {
-      console.error('Failed to delete routine:', err)
-      setError('Failed to delete routine. Please try again.')
-    }
-  }
-
-  return (
-    <div className="space-y-5">
-      {error && (
-        <div className="alert-error">
-          <p className="text-red-400 text-sm">{error}</p>
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            className="text-red-400 hover:text-red-300 ml-2 text-lg leading-none"
-            aria-label="Dismiss error"
-          >
-            &times;
-          </button>
-        </div>
-      )}
-
-      {routineError && (
-        <div className="alert-error">
-          <p className="text-red-400 text-sm">{routineError}</p>
-        </div>
-      )}
-
-      {routineLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="w-8 h-8 border-2 border-surface-border border-t-accent-500 rounded-full animate-spin" />
-        </div>
-      ) : (
-        <>
-          <div className="card-pad">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-ink">Routines</h2>
-              <button onClick={openCreateForm} className="btn-secondary !px-3 !py-1.5 text-xs">
-                + New Routine
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {routines.map((r) => (
-                <div key={r.id} className="flex items-center gap-1">
-                  <button onClick={() => switchRoutine(r.id)} className={r.isActive ? 'badge-accent' : 'badge-muted'}>
-                    {r.name}
-                  </button>
-                  {r.isActive && (
-                    <button onClick={() => openRenameForm(r)} className="btn-icon !w-7 !h-7" aria-label="Rename routine">
-                      <Pencil size={14} strokeWidth={2} />
-                    </button>
-                  )}
-                  {routines.length > 1 && (
-                    <button
-                      onClick={() => handleDeleteRoutine(r.id)}
-                      className="btn-icon !w-7 !h-7"
-                      aria-label="Delete routine"
-                    >
-                      <X size={14} strokeWidth={2} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {showNameForm && (
-              <form onSubmit={submitName} className="flex gap-2 mt-3">
-                <input
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  type="text"
-                  placeholder="Routine name"
-                  className="field-input flex-1"
-                  aria-label="Routine name"
-                />
-                <button type="submit" className="btn-primary !px-3 !py-1.5 text-xs">
-                  Save
-                </button>
-                <button type="button" onClick={cancelNameForm} className="btn-ghost !px-3 !py-1.5 text-xs">
-                  Cancel
-                </button>
-              </form>
-            )}
-          </div>
-
-          <WeeklyGrid selectedDay={selectedDay} onSelectDay={setSelectedDay} />
-
-          <ExerciseSelector
-            day={selectedDay}
-            selectedExercises={selectRoutineForDay(routines, selectedDay)}
-            onAddExercise={handleAddExercise}
-            onRemoveExercise={handleRemoveExercise}
-          />
-
-          <div className="flex gap-3">
-            <button onClick={handleSaveRoutine} disabled={routineLoading} className="btn-primary">
-              {routineLoading ? 'Saving...' : 'Save Routine'}
-            </button>
-            <button onClick={handleResetRoutine} className="btn-secondary">
-              Reset
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 pwa-safe-bottom">
+        {error && (
+          <div className="alert-error">
+            <p className="text-red-400 text-sm">{error}</p>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="text-red-400 hover:text-red-300 ml-2 text-lg leading-none"
+              aria-label="Dismiss error"
+            >
+              &times;
             </button>
           </div>
-        </>
-      )}
-    </div>
+        )}
+
+        {DAYS.map((day) => {
+          const assignedIds = activeRoutine?.weeklyAssignments[day.key] ?? []
+          const assignedExercises = assignedIds
+            .map((id) => exercises.find((e) => e.id === id))
+            .filter((ex): ex is NonNullable<typeof ex> => ex !== undefined)
+
+          return (
+            <DayPlanCard
+              key={day.key}
+              label={day.label}
+              assignedExercises={assignedExercises}
+              allExercises={exercises}
+              expanded={expandedDay === day.key}
+              onToggleExpand={() => setExpandedDay((d) => (d === day.key ? null : day.key))}
+              onAdd={(exerciseId) => handleAdd(day.key, exerciseId)}
+              onRemove={(exerciseId) => handleRemove(day.key, exerciseId)}
+            />
+          )
+        })}
+      </div>
+    </div>,
+    document.body
   )
 }

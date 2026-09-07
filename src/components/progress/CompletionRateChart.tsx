@@ -27,8 +27,8 @@ export function CompletionRateChart({ data }: { data: WeeklyDataPoint[] }) {
                 {
                   label: 'Completion Rate (%)',
                   data: data.map((d) => d.completionRate),
-                  backgroundColor: 'rgba(255, 90, 43, 0.55)',
-                  borderColor: '#ff5a2b',
+                  backgroundColor: 'rgba(3, 172, 143, 0.55)',
+                  borderColor: '#03ac8f',
                   borderWidth: 1.5,
                   borderRadius: 6,
                   maxBarThickness: 36,

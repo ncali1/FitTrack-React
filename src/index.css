@@ -37,38 +37,43 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* FitTrack's own named palette — used directly by the ported .card, .btn-, and .badge- classes below. */
+/*
+ * FitTrack's own named palette — used directly by the ported .card, .btn-, and .badge- classes
+ * below. Sourced from the Nocturne design system tokens in the FitTrack Mobile design handoff
+ * (accent overridden for this app only: teal #03ac8f, not Nocturne's shared default).
+ */
 @theme {
-  --color-canvas: #0a0b0f;
-  --color-canvas-950: #050508;
-  --color-canvas-900: #0a0b0f;
-  --color-canvas-800: #121319;
-  --color-canvas-700: #181a22;
+  --color-canvas: #161826;
+  --color-canvas-950: #0f1119;
+  --color-canvas-900: #161826;
+  --color-canvas-800: #1b1e2c;
+  --color-canvas-700: #232532;
 
-  --color-surface: #15171f;
-  --color-surface-hover: #1c1e28;
-  --color-surface-border: #262835;
+  --color-surface: #232532;
+  --color-surface-hover: #2a2d3d;
+  --color-surface-border: #33364a;
 
-  --color-accent: #ff5a2b;
-  --color-accent-50: #fff1ec;
-  --color-accent-100: #ffe0d3;
-  --color-accent-400: #ff7a4d;
-  --color-accent-500: #ff5a2b;
-  --color-accent-600: #ea4413;
-  --color-accent-700: #c2340c;
+  --color-accent: #03ac8f;
+  --color-accent-50: #e6f8f3;
+  --color-accent-100: #caf2e6;
+  --color-accent-400: #4dc6aa;
+  --color-accent-500: #03ac8f;
+  --color-accent-600: #008068;
+  --color-accent-700: #005948;
+  --color-accent-800: #00352a;
 
   --color-lime: #c6ff5e;
   --color-lime-400: #d4ff85;
   --color-lime-500: #c6ff5e;
   --color-lime-600: #a3e639;
 
-  --color-ink: #f5f6f8;
+  --color-ink: #e9e9ed;
   --color-ink-muted: #9a9ea9;
   --color-ink-faint: #656975;
 
   --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -8px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 0 1px rgba(255, 90, 43, 0.4), 0 0 24px -4px rgba(255, 90, 43, 0.5);
+  --shadow-glow: 0 0 0 1px rgba(3, 172, 143, 0.4), 0 0 24px -4px rgba(3, 172, 143, 0.5);
   --radius-xl2: 1.25rem;
 }
 
@@ -154,22 +159,22 @@
 }
 
 :root {
-  --background: #0a0b0f;
-  --foreground: #f5f6f8;
-  --card: #15171f;
-  --card-foreground: #f5f6f8;
-  --popover: #15171f;
-  --popover-foreground: #f5f6f8;
-  --primary: #ff5a2b;
-  --primary-foreground: #ffffff;
-  --secondary: #1c1e28;
-  --secondary-foreground: #f5f6f8;
-  --muted: #1c1e28;
+  --background: #161826;
+  --foreground: #e9e9ed;
+  --card: #232532;
+  --card-foreground: #e9e9ed;
+  --popover: #232532;
+  --popover-foreground: #e9e9ed;
+  --primary: #03ac8f;
+  --primary-foreground: #161826;
+  --secondary: #2a2d3d;
+  --secondary-foreground: #e9e9ed;
+  --muted: #2a2d3d;
   --muted-foreground: #9a9ea9;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #262835;
-  --input: #262835;
-  --ring: #ff5a2b;
+  --border: #33364a;
+  --input: #33364a;
+  --ring: #03ac8f;
   --radius: 0.625rem;
 }
 
@@ -179,33 +184,7 @@ html {
 
 body {
   @apply bg-canvas text-ink font-sans antialiased;
-  background-color: #0a0b0f;
-}
-
-/*
- * Ambient color glow lives on a fixed pseudo-layer behind all real content, not on
- * `body` itself — that's what lets it slowly cycle through hues via `hue-rotate`
- * without shifting the color of any actual text/UI (a `filter` on `body` would apply
- * to every descendant, not just the background). The three glows share one rotation
- * so they cycle together as a set (orange -> violet -> cyan -> back to orange) rather
- * than drifting independently, which would read as noisy instead of alive.
- */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(85% 75% at 5% -10%, rgba(255, 90, 43, 0.5) 0%, transparent 78%),
-    radial-gradient(90% 80% at 110% 5%, rgba(139, 92, 246, 0.42) 0%, transparent 78%),
-    radial-gradient(95% 85% at 90% 110%, rgba(34, 211, 238, 0.32) 0%, transparent 78%),
-    radial-gradient(120% 140% at 50% -10%, #21232f 0%, #0a0b0f 62%);
-  animation: glow-hue-cycle 24s linear infinite;
-}
-
-@keyframes glow-hue-cycle {
-  to { filter: hue-rotate(360deg); }
+  background-color: #161826;
 }
 
 h1 { @apply text-2xl font-bold tracking-tight; }
@@ -258,7 +237,7 @@ h3 { @apply text-base font-semibold; }
 /* Soft colorful circle behind an empty-state emoji/icon — the "illustration" treatment */
 .empty-blob {
   @apply w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-4xl;
-  background: radial-gradient(circle at 35% 30%, rgba(255, 90, 43, 0.22), rgba(139, 92, 246, 0.14) 55%, transparent 80%);
+  background: radial-gradient(circle at 35% 30%, rgba(3, 172, 143, 0.22), rgba(139, 92, 246, 0.14) 55%, transparent 80%);
 }
 
 @layer components {
@@ -274,7 +253,7 @@ h3 { @apply text-base font-semibold; }
   }
   .stat-tile-accent {
     @apply rounded-2xl shadow-card p-5 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5 border border-accent-500/30;
-    background: linear-gradient(150deg, rgba(255, 90, 43, 0.16), rgba(255, 90, 43, 0.03) 60%);
+    background: linear-gradient(150deg, rgba(3, 172, 143, 0.16), rgba(3, 172, 143, 0.03) 60%);
   }
   .stat-tile-lime {
     @apply rounded-2xl shadow-card p-5 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5 border border-lime-500/30;
@@ -290,7 +269,7 @@ h3 { @apply text-base font-semibold; }
     @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97];
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] bg-accent text-white hover:bg-accent-400 hover:-translate-y-0.5 shadow-[0_4px_16px_-4px_rgba(255,90,43,0.6)] hover:shadow-[0_8px_20px_-4px_rgba(255,90,43,0.7)];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] bg-transparent text-accent border border-accent hover:bg-accent-500/10;
   }
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] bg-surface-hover text-ink border border-surface-border hover:border-ink-faint;

@@ -80,7 +80,7 @@ export function DaySelector({
             onClick={() => onSelectedDateChange(day.dateString)}
             className={
               day.dateString === selectedDate
-                ? 'flex-shrink-0 flex flex-col items-center px-3.5 py-2.5 rounded-xl border transition-colors bg-accent-500 border-accent-500 text-white shadow-[0_4px_16px_-4px_rgba(255,90,43,0.6)]'
+                ? 'flex-shrink-0 flex flex-col items-center px-3.5 py-2.5 rounded-xl border transition-colors bg-accent-500 border-accent-500 text-canvas shadow-[0_4px_16px_-4px_rgba(3,172,143,0.6)]'
                 : 'flex-shrink-0 flex flex-col items-center px-3.5 py-2.5 rounded-xl border transition-colors bg-surface border-surface-border text-ink-muted hover:border-ink-faint/50'
             }
           >

@@ -37,9 +37,9 @@ export function RepsChart({ data, exerciseName }: { data: WeeklyDataPoint[]; exe
                 {
                   label: `${exerciseName} - Reps`,
                   data: data.map((d) => d.averageReps),
-                  borderColor: '#ff5a2b',
-                  backgroundColor: 'rgba(255, 90, 43, 0.15)',
-                  pointBackgroundColor: '#ff5a2b',
+                  borderColor: '#03ac8f',
+                  backgroundColor: 'rgba(3, 172, 143, 0.15)',
+                  pointBackgroundColor: '#03ac8f',
                   pointBorderColor: '#0a0b0f',
                   pointRadius: 4,
                   pointHoverRadius: 6,

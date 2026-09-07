@@ -10,6 +10,8 @@ export interface Exercise {
   targetSets: number
   targetReps: number
   targetMuscleGroups: string[]
+  /** Optional free-text form cues, a video link, or any other reminder for this exercise. */
+  notes?: string
   /** Unix milliseconds */
   createdAt: number
   /** Unix milliseconds */
@@ -44,6 +46,10 @@ export interface ExercisePerformance {
   /** Weight used in kg; omit if bodyweight only */
   weight?: number
   difficultyLevel?: 'easy' | 'moderate' | 'hard'
+  /** Rate of Perceived Exertion, 6-10 in half-point steps. Optional — a supplementary,
+   *  more granular alternative to `difficultyLevel` for anyone who wants it, not a
+   *  replacement; nothing in the app requires it to be set. */
+  rpe?: number
   /** Unix milliseconds */
   timestamp: number
 }

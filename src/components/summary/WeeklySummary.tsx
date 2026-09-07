@@ -58,9 +58,14 @@ export function WeeklySummary() {
   // Call the cached getter *inside* the selector (not select-then-call-later) so this
   // component re-renders whenever `sessions` changes — see the note on
   // `selectRoutineForDay` in stores/routine.ts for why that distinction matters with Zustand.
-  const summary = useWorkoutSessionsStore((s) =>
-    activeRoutine ? s.getCachedWeeklySummary(weekStart, activeRoutine) : EMPTY_SUMMARY(weekStart, weekEnd)
+  // The no-active-routine case falls back to `null` (a stable primitive) rather than a
+  // fresh object literal — useSyncExternalStore requires the selector to return a
+  // referentially stable snapshot when nothing has changed, and a new object every call
+  // triggers an infinite re-render loop.
+  const cachedSummary = useWorkoutSessionsStore((s) =>
+    activeRoutine ? s.getCachedWeeklySummary(weekStart, activeRoutine) : null
   )
+  const summary = cachedSummary ?? EMPTY_SUMMARY(weekStart, weekEnd)
 
   return (
     <div className="space-y-5">

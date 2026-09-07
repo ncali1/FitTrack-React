@@ -175,6 +175,58 @@ export function getExerciseHistory(exerciseId: string, sessions: WorkoutSession[
     .sort((a, b) => b.date.localeCompare(a.date))
 }
 
+// ── Session Volume ──────────────────────────────────────────────────────
+
+/**
+ * Total training volume (weight × sets × reps, summed across completed exercises) in
+ * kilograms. Exercises logged without a weight (bodyweight-only) contribute 0 rather
+ * than being excluded, since they still count toward the exercise/rep totals shown
+ * alongside volume, just not toward the kg figure itself.
+ */
+export function calculateSessionVolume(performances: ExercisePerformance[]): number {
+  return performances
+    .filter((p) => p.completed)
+    .reduce((sum, p) => sum + (p.weight ?? 0) * (p.actualSets ?? 0) * (p.actualReps ?? 0), 0)
+}
+
+// ── Streak ──────────────────────────────────────────────────────────────
+
+/**
+ * Counts the consecutive-day training streak ending at `todayStr`, walking backward one
+ * day at a time. A day with no exercises assigned (a rest day) is skipped without
+ * breaking the streak. A day with assigned exercises counts toward the streak only if
+ * every one of them was completed; today itself is exempt from that rule (so the streak
+ * doesn't drop to 0 the moment the clock rolls over, before today's workout is logged)
+ * but every earlier day is not — the first earlier day with an incomplete assignment
+ * ends the count.
+ */
+export function calculateStreak(routine: Routine | null, sessions: WorkoutSession[], todayStr: string): number {
+  if (!routine) return 0
+
+  let count = 0
+  let cursor = todayStr
+  // A day per iteration, capped generously — no realistic streak runs anywhere near this.
+  for (let i = 0; i < 3650; i++) {
+    const assigned = routine.weeklyAssignments[getDayOfWeek(cursor)] ?? []
+    if (assigned.length === 0) {
+      cursor = addDays(cursor, -1)
+      continue
+    }
+
+    const session = sessions.find((s) => s.date === cursor)
+    const allCompleted = assigned.every((id) => session?.exercises.some((e) => e.exerciseId === id && e.completed))
+
+    if (allCompleted) {
+      count += 1
+    } else if (cursor !== todayStr) {
+      break
+    }
+    cursor = addDays(cursor, -1)
+  }
+
+  return count
+}
+
 // ── Daily Checklist ─────────────────────────────────────────────────────
 
 /** Returns the lowercase day name (e.g. 'monday') for a YYYY-MM-DD date string. */

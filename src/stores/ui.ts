@@ -37,7 +37,7 @@ export const useUIStore = create<UIState>()((set) => ({
     start: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] as string,
     end: todayString(),
   },
-  activeTab: 'exercises',
+  activeTab: 'home',
 
   setSelectedDate: (date) => set({ selectedDate: date }),
   setSelectedExercise: (exerciseId) => set({ selectedExercise: exerciseId }),

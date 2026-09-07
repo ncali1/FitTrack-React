@@ -34,6 +34,7 @@ function ExerciseCard({
           </span>
         ))}
       </div>
+      {exercise.notes && <p className="text-xs text-ink-muted mb-4 line-clamp-2">{exercise.notes}</p>}
       <div className="flex gap-2 mt-auto">
         <button className="btn-secondary flex-1 !px-3 !py-1.5 text-xs" onClick={() => onEdit(exercise)}>
           Edit

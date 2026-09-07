@@ -1,4 +1,4 @@
-import { Dumbbell, CalendarDays, CircleCheckBig, LayoutGrid, TrendingUp, Scale, Library } from 'lucide-react'
+import { Home, Dumbbell, Library, TrendingUp, User } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface TabDef {
@@ -9,11 +9,9 @@ export interface TabDef {
 
 /** Primary navigation tabs, shared between TopBar (desktop) and BottomNav (mobile). */
 export const TABS: TabDef[] = [
-  { id: 'exercises', label: 'Exercises', icon: Dumbbell },
+  { id: 'home', label: 'Home', icon: Home },
+  { id: 'train', label: 'Train', icon: Dumbbell },
   { id: 'library', label: 'Library', icon: Library },
-  { id: 'routine', label: 'Routine', icon: CalendarDays },
-  { id: 'checklist', label: 'Today', icon: CircleCheckBig },
-  { id: 'summary', label: 'Summary', icon: LayoutGrid },
   { id: 'progress', label: 'Progress', icon: TrendingUp },
-  { id: 'bodyweight', label: 'Weight', icon: Scale },
+  { id: 'profile', label: 'Profile', icon: User },
 ]

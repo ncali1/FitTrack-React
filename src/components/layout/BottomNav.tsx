@@ -15,7 +15,7 @@ export function BottomNav() {
       className="sm:hidden fixed bottom-0 inset-x-0 z-40 pwa-safe-bottom bg-surface/95 backdrop-blur-lg border-t border-surface-border"
       aria-label="Primary"
     >
-      <div className="grid grid-cols-7">
+      <div className="grid grid-cols-5">
         {TABS.map((tab) => {
           const Icon = tab.icon
           const active = activeTab === tab.id

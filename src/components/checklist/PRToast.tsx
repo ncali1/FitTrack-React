@@ -20,7 +20,7 @@ export function PRToast({ message, onDismissed }: { message: string; onDismissed
       <div className="card p-4 flex items-center gap-3 border-lime-500/40 shadow-[0_16px_48px_-12px_rgba(198,255,94,0.25)]">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg animate-float"
-          style={{ background: 'linear-gradient(135deg, rgba(198,255,94,0.35), rgba(255,90,43,0.2))' }}
+          style={{ background: 'linear-gradient(135deg, rgba(198,255,94,0.35), rgba(3,172,143,0.2))' }}
         >
           🏆
         </div>

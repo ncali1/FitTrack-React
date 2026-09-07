@@ -15,7 +15,8 @@ interface ExercisesState {
     name: string,
     targetSets: number,
     targetReps: number,
-    targetMuscleGroups: string[]
+    targetMuscleGroups: string[],
+    notes?: string
   ) => Promise<Exercise>
   updateExercise: (id: string, updates: Partial<Omit<Exercise, 'id' | 'createdAt'>>) => Promise<Exercise>
   deleteExercise: (id: string) => Promise<void>
@@ -32,7 +33,7 @@ export const useExercisesStore = create<ExercisesState>()((set, get) => ({
 
   exerciseById: (id) => get().exercises.find((ex) => ex.id === id),
 
-  createExercise: async (name, targetSets, targetReps, targetMuscleGroups) => {
+  createExercise: async (name, targetSets, targetReps, targetMuscleGroups, notes) => {
     set({ loading: true, error: null })
     try {
       const errors = validateExerciseForm({ name, targetSets, targetReps, targetMuscleGroups })
@@ -40,12 +41,14 @@ export const useExercisesStore = create<ExercisesState>()((set, get) => ({
       if (firstError) throw new Error(firstError)
 
       const now = Date.now()
+      const trimmedNotes = notes?.trim()
       const exercise: Exercise = {
         id: crypto.randomUUID(),
         name: name.trim(),
         targetSets,
         targetReps,
         targetMuscleGroups,
+        ...(trimmedNotes ? { notes: trimmedNotes } : {}),
         createdAt: now,
         updatedAt: now,
       }
@@ -80,17 +83,20 @@ export const useExercisesStore = create<ExercisesState>()((set, get) => ({
         targetSets: updates.targetSets ?? existing.targetSets,
         targetReps: updates.targetReps ?? existing.targetReps,
         targetMuscleGroups: updates.targetMuscleGroups ?? existing.targetMuscleGroups,
+        notes: 'notes' in updates ? updates.notes : existing.notes,
       }
       const errors = validateExerciseForm(merged)
       const firstError = Object.values(errors)[0]
       if (firstError) throw new Error(firstError)
 
+      const trimmedNotes = merged.notes?.trim()
       const updated: Exercise = {
         id: existing.id,
         name: merged.name.trim(),
         targetSets: merged.targetSets,
         targetReps: merged.targetReps,
         targetMuscleGroups: merged.targetMuscleGroups,
+        ...(trimmedNotes ? { notes: trimmedNotes } : {}),
         createdAt: existing.createdAt,
         updatedAt: Date.now(),
       }

@@ -1,12 +1,11 @@
 /**
- * End-to-end tests for the RoutineBuilder component: the complete user workflow of
- * selecting a day, assigning/removing exercises via the real rendered UI, and managing
- * multiple routines. Store-level edge cases (case-insensitive days, duplicate guards,
- * etc.) are already covered by routine.test.ts — this file focuses on what only the
- * rendered UI can verify: that user interactions actually update what's on screen.
+ * End-to-end tests for the RoutineBuilder plan-builder overlay: expanding a day's
+ * picker, adding/removing exercises via the toggle-grid and chip, and the close action.
+ * Multi-routine management (create/rename/delete/switch) lives in ProfileScreen now, not
+ * here — see ProfileScreen.e2e.test.tsx for that coverage.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RoutineBuilder } from './RoutineBuilder'
 import { useExercisesStore } from '@/stores/exercises'
@@ -35,13 +34,7 @@ const INITIAL_EXERCISES = useExercisesStore.getState()
 const INITIAL_ROUTINE = useRoutineStore.getState()
 const INITIAL_SESSIONS = useWorkoutSessionsStore.getState()
 
-async function waitForLoaded() {
-  await waitFor(() => {
-    expect(screen.getByText('Weekly Routine')).toBeTruthy()
-  })
-}
-
-describe('E2E: Routine Builder', () => {
+describe('E2E: Routine Builder (plan builder overlay)', () => {
   beforeEach(() => {
     useExercisesStore.setState(INITIAL_EXERCISES, true)
     useRoutineStore.setState(INITIAL_ROUTINE, true)
@@ -49,97 +42,79 @@ describe('E2E: Routine Builder', () => {
     useWorkoutSessionsStore.getState().invalidateCache()
   })
 
-  it('renders all seven days of the week, each starting empty', async () => {
-    render(<RoutineBuilder />)
-    await waitForLoaded()
+  it('renders all seven days, each starting as a rest day', () => {
+    render(<RoutineBuilder onClose={() => {}} />)
 
-    for (const day of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']) {
+    for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']) {
       expect(screen.getByText(day)).toBeTruthy()
     }
-    expect(screen.getAllByText('No exercises assigned')).toHaveLength(7)
+    expect(screen.getAllByText('Rest day')).toHaveLength(7)
   })
 
-  it('assigns an exercise to a day via the dropdown and reflects it in the grid', async () => {
+  it('expanding a day shows a toggle-grid of the exercise library', async () => {
     const user = userEvent.setup()
     await useExercisesStore.getState().createExercise('Bench Press', 3, 10, ['Chest'])
+    render(<RoutineBuilder onClose={() => {}} />)
 
-    render(<RoutineBuilder />)
-    await waitForLoaded()
+    const mondayCard = screen.getByText('Monday').closest('.card') as HTMLElement
+    await user.click(within(mondayCard).getByRole('button', { name: /add/i }))
 
-    // Monday is selected by default
-    await user.selectOptions(screen.getByLabelText(/available exercises/i), 'Bench Press (3x10)')
-
-    await waitFor(() => {
-      expect(screen.getByText('Selected Exercises')).toBeTruthy()
-    })
-    // Appears both in the "Selected Exercises" list and the weekly grid cell
-    expect(screen.getAllByText('Bench Press')).toHaveLength(2)
+    expect(within(mondayCard).getByRole('button', { name: 'Bench Press' })).toBeTruthy()
   })
 
-  it('removes an exercise from a day via the Remove button', async () => {
+  it('adds an exercise via the toggle-grid and shows it as a removable chip', async () => {
     const user = userEvent.setup()
     await useExercisesStore.getState().createExercise('Bench Press', 3, 10, ['Chest'])
+    render(<RoutineBuilder onClose={() => {}} />)
 
-    render(<RoutineBuilder />)
-    await waitForLoaded()
-
-    await user.selectOptions(screen.getByLabelText(/available exercises/i), 'Bench Press (3x10)')
-    await waitFor(() => expect(screen.getByText('Selected Exercises')).toBeTruthy())
-
-    await user.click(screen.getByRole('button', { name: /remove/i }))
+    const mondayCard = screen.getByText('Monday').closest('.card') as HTMLElement
+    await user.click(within(mondayCard).getByRole('button', { name: /add/i }))
+    await user.click(within(mondayCard).getByRole('button', { name: 'Bench Press' }))
 
     await waitFor(() => {
-      expect(screen.getByText('No exercises selected yet')).toBeTruthy()
+      // Chip + grid toggle button both now read "Bench Press" — two matches.
+      expect(within(mondayCard).getAllByText('Bench Press')).toHaveLength(2)
     })
-    expect(screen.getAllByText('No exercises assigned')).toHaveLength(7)
+    expect(within(mondayCard).queryByText('Rest day')).toBeNull()
   })
 
-  it('switches which day is being edited when a different day is clicked', async () => {
+  it('removes an exercise by clicking the chip\'s remove button', async () => {
     const user = userEvent.setup()
     await useExercisesStore.getState().createExercise('Bench Press', 3, 10, ['Chest'])
+    render(<RoutineBuilder onClose={() => {}} />)
 
-    render(<RoutineBuilder />)
-    await waitForLoaded()
+    const mondayCard = screen.getByText('Monday').closest('.card') as HTMLElement
+    await user.click(within(mondayCard).getByRole('button', { name: /add/i }))
+    await user.click(within(mondayCard).getByRole('button', { name: 'Bench Press' }))
+    await waitFor(() => expect(within(mondayCard).queryByText('Rest day')).toBeNull())
 
-    expect(screen.getByText(/add exercises to/i).textContent).toMatch(/monday/i)
+    await user.click(within(mondayCard).getByRole('button', { name: /remove bench press/i }))
 
-    await user.click(screen.getByText('wednesday'))
-
-    expect(screen.getByText(/add exercises to/i).textContent).toMatch(/wednesday/i)
+    await waitFor(() => {
+      expect(within(mondayCard).getByText('Rest day')).toBeTruthy()
+    })
   })
 
-  it('creates a second routine, switches to it, and keeps assignments independent', async () => {
+  it('keeps assignments independent per day', async () => {
     const user = userEvent.setup()
     await useExercisesStore.getState().createExercise('Bench Press', 3, 10, ['Chest'])
+    render(<RoutineBuilder onClose={() => {}} />)
 
-    render(<RoutineBuilder />)
-    await waitForLoaded()
+    const mondayCard = screen.getByText('Monday').closest('.card') as HTMLElement
+    await user.click(within(mondayCard).getByRole('button', { name: /add/i }))
+    await user.click(within(mondayCard).getByRole('button', { name: 'Bench Press' }))
+    await waitFor(() => expect(within(mondayCard).queryByText('Rest day')).toBeNull())
 
-    // Assign Bench Press to Monday in the first (auto-created) routine
-    await user.selectOptions(screen.getByLabelText(/available exercises/i), 'Bench Press (3x10)')
-    await waitFor(() => expect(screen.getByText('Selected Exercises')).toBeTruthy())
+    const wednesdayCard = screen.getByText('Wednesday').closest('.card') as HTMLElement
+    expect(within(wednesdayCard).getByText('Rest day')).toBeTruthy()
+  })
 
-    // Create a second routine
-    await user.click(screen.getByRole('button', { name: /new routine/i }))
-    await user.type(screen.getByLabelText(/routine name/i), '5x5')
-    await user.click(screen.getByRole('button', { name: /^save$/i }))
+  it('calls onClose when the close button is clicked', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<RoutineBuilder onClose={onClose} />)
 
-    await waitFor(() => {
-      expect(screen.getByText('5x5')).toBeTruthy()
-    })
-
-    // The new routine is created inactive — switch to it
-    await user.click(screen.getByText('5x5'))
-
-    await waitFor(() => {
-      // Now active, Monday should be empty in this routine
-      expect(screen.getByText('No exercises selected yet')).toBeTruthy()
-    })
-
-    // Switch back to the original routine — Bench Press should still be there
-    await user.click(screen.getByText('My Routine'))
-    await waitFor(() => {
-      expect(screen.getByText('Selected Exercises')).toBeTruthy()
-    })
+    await user.click(screen.getByRole('button', { name: /close/i }))
+    expect(onClose).toHaveBeenCalled()
   })
 })

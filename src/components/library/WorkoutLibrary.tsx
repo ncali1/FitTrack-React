@@ -1,106 +1,92 @@
 import { useMemo, useState } from 'react'
-import { Search, X, Plus, Check } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Search, X, Dumbbell, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { useExercisesStore } from '@/stores/exercises'
+import { useRoutineStore, selectRoutineForDay } from '@/stores/routine'
 import { muscleGroupStyle } from '@/utils/muscleGroupStyles'
+import { getDayOfWeek } from '@/utils/calculations'
 import { WORKOUT_LIBRARY, type LibraryWorkout } from '@/data/workoutLibrary'
-import { MuscleBodyDiagram } from './MuscleBodyDiagram'
 
-function WorkoutCard({ workout, alreadyAdded }: { workout: LibraryWorkout; alreadyAdded: boolean }) {
+/** Broader region groupings for the filter chips — several raw muscle groups collapse
+ *  into one chip (e.g. Biceps/Triceps/Forearms -> Arms) to keep the filter row short. */
+const FILTER_GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core']
+
+function regionOf(muscleGroup: string): string {
+  if (['Triceps', 'Biceps', 'Forearms'].includes(muscleGroup)) return 'Arms'
+  if (['Quadriceps', 'Hamstrings', 'Glutes', 'Calves'].includes(muscleGroup)) return 'Legs'
+  return muscleGroup
+}
+
+function todayString(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Browsable catalog of predefined exercises (independent of the user's own Exercise
+ * Manager entries). Tapping a result opens a detail sheet with a single "Add to today"
+ * action, which both adds it to the user's exercises (if not already there, the same
+ * effect as creating it manually) and assigns it to today's routine day in one step —
+ * a shortcut alongside the full weekly editing in Profile's plan builder.
+ */
+export function WorkoutLibrary() {
+  const exercises = useExercisesStore((s) => s.exercises)
   const createExercise = useExercisesStore((s) => s.createExercise)
+  const routines = useRoutineStore((s) => s.routines)
+  const assignExercise = useRoutineStore((s) => s.assignExercise)
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedGroup, setSelectedGroup] = useState('All')
+  const [selectedDetail, setSelectedDetail] = useState<LibraryWorkout | null>(null)
   const [adding, setAdding] = useState(false)
 
-  const handleAdd = async () => {
+  const today = getDayOfWeek(todayString())
+  const todayAssignedIds = selectRoutineForDay(routines, today)
+
+  const filteredWorkouts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    return WORKOUT_LIBRARY.filter((workout) => {
+      const matchesSearch = query === '' || workout.name.toLowerCase().includes(query)
+      const matchesGroup =
+        selectedGroup === 'All' || workout.targetMuscleGroups.some((m) => regionOf(m) === selectedGroup)
+      return matchesSearch && matchesGroup
+    })
+  }, [searchQuery, selectedGroup])
+
+  const handleAddToToday = async () => {
+    if (!selectedDetail) return
     setAdding(true)
     try {
-      await createExercise(workout.name, workout.targetSets, workout.targetReps, [...workout.targetMuscleGroups])
-      toast.success(`${workout.name} added to your exercises`)
+      const existing = exercises.find((e) => e.name.toLowerCase() === selectedDetail.name.toLowerCase())
+      const exerciseId = existing
+        ? existing.id
+        : (
+            await createExercise(
+              selectedDetail.name,
+              selectedDetail.targetSets,
+              selectedDetail.targetReps,
+              [...selectedDetail.targetMuscleGroups]
+            )
+          ).id
+
+      if (todayAssignedIds.includes(exerciseId)) {
+        toast('Already in today’s plan')
+      } else {
+        await assignExercise(today, exerciseId)
+        toast.success('Added to today’s workout')
+      }
+      setSelectedDetail(null)
     } catch (err) {
-      console.error('Failed to add workout to exercises:', err)
-      toast.error('Failed to add workout')
+      console.error('Failed to add to today:', err)
+      toast.error('Failed to add to today')
     } finally {
       setAdding(false)
     }
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <MuscleBodyDiagram targetMuscleGroups={workout.targetMuscleGroups} pattern={workout.movementPattern} />
-
-      <h3 className="text-base font-semibold text-ink mt-3">{workout.name}</h3>
-      <p className="text-ink-muted text-xs mt-1 leading-relaxed">{workout.description}</p>
-
-      <div className="flex gap-3 text-xs text-ink-muted mt-3 flex-wrap">
-        <span className="badge-muted">Sets: {workout.targetSets}</span>
-        <span className="badge-muted">Reps: {workout.targetReps}</span>
-      </div>
-
-      <div className="flex flex-wrap gap-1.5 mt-3 mb-4">
-        {workout.targetMuscleGroups.map((group) => (
-          <span key={group} className={`badge ${muscleGroupStyle(group).badge}`}>
-            {group}
-          </span>
-        ))}
-      </div>
-
-      <button
-        onClick={handleAdd}
-        disabled={adding || alreadyAdded}
-        className={alreadyAdded ? 'btn-secondary w-full mt-auto' : 'btn-primary w-full mt-auto'}
-      >
-        {alreadyAdded ? (
-          <>
-            <Check size={16} strokeWidth={2.5} />
-            Added
-          </>
-        ) : (
-          <>
-            <Plus size={16} strokeWidth={2.5} />
-            {adding ? 'Adding...' : 'Add to Workout'}
-          </>
-        )}
-      </button>
-    </div>
-  )
-}
-
-/**
- * Browsable catalog of predefined exercises (independent of the user's own Exercise
- * Manager entries), with a front/back muscle diagram highlighting each one's targeted
- * regions in red. "Add to Workout" copies it into the user's own Exercises list — the
- * same effect as creating it manually via ExerciseForm.
- */
-export function WorkoutLibrary() {
-  const exercises = useExercisesStore((s) => s.exercises)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedGroup, setSelectedGroup] = useState('All')
-
-  const addedNames = useMemo(() => new Set(exercises.map((ex) => ex.name.toLowerCase())), [exercises])
-
-  const muscleGroups = useMemo(() => {
-    const groups = new Set<string>()
-    WORKOUT_LIBRARY.forEach((workout) => workout.targetMuscleGroups.forEach((group) => groups.add(group)))
-    return Array.from(groups).sort()
-  }, [])
-
-  const filteredWorkouts = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
-    return WORKOUT_LIBRARY.filter((workout) => {
-      const matchesSearch = query === '' || workout.name.toLowerCase().includes(query)
-      const matchesGroup = selectedGroup === 'All' || workout.targetMuscleGroups.includes(selectedGroup)
-      return matchesSearch && matchesGroup
-    })
-  }, [searchQuery, selectedGroup])
-
-  return (
-    <div className="space-y-5">
-      <div className="section-header">
-        <div>
-          <h2 className="text-ink">Workout Library</h2>
-          <p className="text-ink-muted text-sm mt-0.5">Explore exercises and add the ones you want to try.</p>
-        </div>
-      </div>
-
+    <div className="space-y-4">
       <div className="space-y-3">
         <div className="relative">
           <Search size={16} strokeWidth={2} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
@@ -108,7 +94,7 @@ export function WorkoutLibrary() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search the library..."
+            placeholder="Search exercises"
             aria-label="Search workout library"
             className="field-input !pl-10 !pr-9"
           />
@@ -123,20 +109,17 @@ export function WorkoutLibrary() {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setSelectedGroup('All')}
-            aria-pressed={selectedGroup === 'All'}
-            className={selectedGroup === 'All' ? 'badge-accent' : 'badge-muted'}
-          >
-            All
-          </button>
-          {muscleGroups.map((group) => (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {FILTER_GROUPS.map((group) => (
             <button
               key={group}
               onClick={() => setSelectedGroup(group)}
               aria-pressed={selectedGroup === group}
-              className={selectedGroup === group ? `badge ${muscleGroupStyle(group).badge}` : 'badge-muted'}
+              className={
+                selectedGroup === group
+                  ? 'flex-none px-3.5 py-1.5 rounded-full text-xs font-semibold bg-accent text-canvas border border-accent'
+                  : 'flex-none px-3.5 py-1.5 rounded-full text-xs font-semibold bg-transparent text-ink-muted border border-surface-border'
+              }
             >
               {group}
             </button>
@@ -151,14 +134,63 @@ export function WorkoutLibrary() {
           <p className="text-ink-muted text-sm mt-1">Try a different search term or muscle group.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
+        <div className="space-y-2 stagger-children">
           {filteredWorkouts.map((workout) => (
-            <div key={workout.id} className="card-pad card-hover animate-pop-in">
-              <WorkoutCard workout={workout} alreadyAdded={addedNames.has(workout.name.toLowerCase())} />
+            <div
+              key={workout.id}
+              onClick={() => setSelectedDetail(workout)}
+              role="button"
+              className="card card-hover animate-pop-in flex items-center gap-3 p-3 cursor-pointer"
+            >
+              <div className="w-[38px] h-[38px] rounded-[10px] bg-canvas-800 border border-surface-border flex items-center justify-center flex-none">
+                <Dumbbell size={17} strokeWidth={2} className="text-accent" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-medium text-ink truncate">{workout.name}</h3>
+                <div className="text-xs text-ink-muted mt-0.5 truncate">
+                  {workout.targetSets}×{workout.targetReps} · {workout.targetMuscleGroups.slice(0, 2).join(', ')}
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-ink-faint flex-none" />
             </div>
           ))}
         </div>
       )}
+
+      {selectedDetail &&
+        createPortal(
+          <div
+            className="modal-overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSelectedDetail(null)
+            }}
+          >
+            <div className="modal-panel">
+              <div className="p-6">
+                <h2 className="text-ink text-lg mb-1">{selectedDetail.name}</h2>
+                <p className="text-sm text-ink-muted mb-4">
+                  Target: {selectedDetail.targetSets}×{selectedDetail.targetReps}
+                </p>
+                <div className="flex flex-wrap gap-1.5 mb-6">
+                  {selectedDetail.targetMuscleGroups.map((group) => (
+                    <span key={group} className={`badge ${muscleGroupStyle(group).badge}`}>
+                      {group}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-3">
+                  <button className="btn-secondary flex-1" onClick={() => setSelectedDetail(null)}>
+                    Close
+                  </button>
+                  <button className="btn-primary flex-1" disabled={adding} onClick={handleAddToToday}>
+                    {adding ? 'Adding...' : 'Add to today'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   )
 }

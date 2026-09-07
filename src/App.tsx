@@ -5,14 +5,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useRestTimerStore } from '@/stores/restTimer'
 import { flushQueue, pullAndHydrate } from '@/services/cloudSync'
 import { Layout } from '@/components/layout/Layout'
-import { ExerciseManager } from '@/components/exercises/ExerciseManager'
+import { HomeDashboard } from '@/components/home/HomeDashboard'
 import { WorkoutLibrary } from '@/components/library/WorkoutLibrary'
-import { RoutineBuilder } from '@/components/routine/RoutineBuilder'
+import { ProfileScreen } from '@/components/profile/ProfileScreen'
 import { DailyChecklist } from '@/components/checklist/DailyChecklist'
-import { WeeklySummary } from '@/components/summary/WeeklySummary'
-import { BodyWeightTracker } from '@/components/bodyweight/BodyWeightTracker'
 import { AuthGate } from '@/components/auth/AuthGate'
 import { PasswordRecoveryGate } from '@/components/auth/PasswordRecoveryGate'
+import { Onboarding } from '@/components/onboarding/Onboarding'
 import { InstallPrompt } from '@/components/widgets/InstallPrompt'
 import { RestTimer } from '@/components/widgets/RestTimer'
 import { WorkoutReminder } from '@/components/widgets/WorkoutReminder'
@@ -24,6 +23,7 @@ const ProgressGraphs = lazy(() =>
 )
 
 const SKIP_KEY = 'fittrack-skip-auth'
+const ONBOARDING_KEY = 'fittrack-onboarding-complete'
 
 function App() {
   const { initializeApp, isLoading, error } = useAppInitialization()
@@ -38,6 +38,7 @@ function App() {
 
   const [skipped, setSkipped] = useState(() => localStorage.getItem(SKIP_KEY) === 'true')
   const [authReady, setAuthReady] = useState(false)
+  const [onboarded, setOnboarded] = useState(() => localStorage.getItem(ONBOARDING_KEY) === 'true')
 
   /** `true` once we know whether to show the auth gate, sign-in state resolved. */
   const showAuthGate = cloudEnabled && authReady && !isAuthenticated && !skipped
@@ -68,6 +69,12 @@ function App() {
     setSkipped(true)
   }
 
+  /** Marks first-launch onboarding as seen for this device — shown once, ever. */
+  const finishOnboarding = () => {
+    localStorage.setItem(ONBOARDING_KEY, 'true')
+    setOnboarded(true)
+  }
+
   useEffect(() => {
     authInit().then(() => setAuthReady(true))
   }, [authInit])
@@ -83,6 +90,10 @@ function App() {
 
   if (passwordRecoveryMode) {
     return <PasswordRecoveryGate />
+  }
+
+  if (!onboarded) {
+    return <Onboarding onFinish={finishOnboarding} />
   }
 
   if (showAuthGate) {
@@ -116,22 +127,18 @@ function App() {
     <>
       <Layout>
         <div key={activeTab} className="animate-pop-in">
-          {activeTab === 'exercises' ? (
-            <ExerciseManager />
+          {activeTab === 'home' ? (
+            <HomeDashboard />
+          ) : activeTab === 'train' ? (
+            <DailyChecklist />
           ) : activeTab === 'library' ? (
             <WorkoutLibrary />
-          ) : activeTab === 'routine' ? (
-            <RoutineBuilder />
-          ) : activeTab === 'checklist' ? (
-            <DailyChecklist />
-          ) : activeTab === 'summary' ? (
-            <WeeklySummary />
           ) : activeTab === 'progress' ? (
             <Suspense fallback={<div className="card-pad text-center py-14 text-ink-faint">Loading charts…</div>}>
               <ProgressGraphs />
             </Suspense>
           ) : (
-            <BodyWeightTracker />
+            <ProfileScreen />
           )}
         </div>
       </Layout>

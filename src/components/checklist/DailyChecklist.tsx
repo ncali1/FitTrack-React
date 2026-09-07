@@ -6,12 +6,21 @@ import { useSettingsStore } from '@/stores/settings'
 import { useRestTimerStore } from '@/stores/restTimer'
 import { detectNewRecords } from '@/utils/personalRecords'
 import { formatWeight } from '@/utils/units'
+import { calculateSessionVolume, getExerciseHistory } from '@/utils/calculations'
+import { suggestNextPerformance } from '@/utils/progressiveOverload'
 import type { Exercise, ExercisePerformance } from '@/types'
 import { DaySelector } from './DaySelector'
 import { ChecklistItems } from './ChecklistItems'
 import type { ChecklistItem } from './ChecklistItems'
 import { PerformanceForm } from './PerformanceForm'
 import { PRToast } from './PRToast'
+import { GuidedSession } from './GuidedSession'
+import { SessionGroupPicker } from './SessionGroupPicker'
+
+interface SessionSummary {
+  count: number
+  volumeKg: number
+}
 
 const DAY_NAMES: Record<number, string> = {
   0: 'sunday',
@@ -65,6 +74,9 @@ export function DailyChecklist() {
   // Distinguishes consecutive PR toasts that happen to share the same message text, so
   // PRToast always remounts (and replays its enter animation + dismiss timer) for a new PR.
   const [prToastId, setPrToastId] = useState(0)
+  const [groupPickerExercises, setGroupPickerExercises] = useState<Exercise[] | null>(null)
+  const [guidedGroups, setGuidedGroups] = useState<Exercise[][] | null>(null)
+  const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null)
 
   useEffect(() => {
     Promise.all([loadRoutines(), loadExercises(), loadSessions()]).catch((err) => {
@@ -90,6 +102,10 @@ export function DailyChecklist() {
       ? (currentSession.exercises.find((e) => e.exerciseId === activeExercise.id) ?? null)
       : null
 
+  const activeExerciseSuggestion = activeExercise
+    ? suggestNextPerformance(getExerciseHistory(activeExercise.id, sessions))
+    : null
+
   const checklistItems: ChecklistItem[] = exercisesForDay.map((exercise) => {
     const performance = currentSession?.exercises.find((p) => p.exerciseId === exercise.id)
 
@@ -112,6 +128,7 @@ export function DailyChecklist() {
       targetSets: exercise.targetSets,
       targetReps: exercise.targetReps,
       targetMuscleGroups: exercise.targetMuscleGroups,
+      notes: exercise.notes,
       completed: performance?.completed ?? false,
       performance,
       isWeightPR,
@@ -146,33 +163,39 @@ export function DailyChecklist() {
     }
   }
 
+  /** Shared by the ad-hoc (tap-a-checklist-item) and guided-session logging paths. */
+  const logExercisePerformance = async (
+    exercise: Exercise,
+    performance: Omit<ExercisePerformance, 'exerciseId' | 'timestamp'>
+  ) => {
+    // Compute PR status against state *before* this submission is applied.
+    const priorPerformances = performanceByExercise(exercise.id)
+    const { isWeightPR, isRepsPR } = detectNewRecords(priorPerformances, {
+      weight: performance.weight,
+      actualReps: performance.actualReps,
+    })
+
+    const sessionId = await ensureSession()
+    await logPerformance(sessionId, exercise.id, performance)
+
+    if (isWeightPR || isRepsPR) {
+      if (isWeightPR && isRepsPR) {
+        setPrMessage(`${exercise.name}: new best weight and reps!`)
+      } else if (isWeightPR) {
+        setPrMessage(`${exercise.name}: new heaviest weight — ${formatWeight(performance.weight, weightUnit)}${weightUnit}!`)
+      } else {
+        setPrMessage(`${exercise.name}: new best reps — ${performance.actualReps}!`)
+      }
+      setPrToastId((id) => id + 1)
+    }
+  }
+
   const handlePerformanceSubmit = async (performance: Omit<ExercisePerformance, 'exerciseId' | 'timestamp'>) => {
     if (!activeExercise) return
-    const exerciseName = activeExercise.name
 
     try {
-      // Compute PR status against state *before* this submission is applied.
-      const priorPerformances = performanceByExercise(activeExercise.id)
-      const { isWeightPR, isRepsPR } = detectNewRecords(priorPerformances, {
-        weight: performance.weight,
-        actualReps: performance.actualReps,
-      })
-
-      const sessionId = await ensureSession()
-      await logPerformance(sessionId, activeExercise.id, performance)
+      await logExercisePerformance(activeExercise, performance)
       setActiveExercise(null)
-
-      if (isWeightPR || isRepsPR) {
-        if (isWeightPR && isRepsPR) {
-          setPrMessage(`${exerciseName}: new best weight and reps!`)
-        } else if (isWeightPR) {
-          setPrMessage(`${exerciseName}: new heaviest weight — ${formatWeight(performance.weight, weightUnit)}${weightUnit}!`)
-        } else {
-          setPrMessage(`${exerciseName}: new best reps — ${performance.actualReps}!`)
-        }
-        setPrToastId((id) => id + 1)
-      }
-
       if (performance.completed) {
         startRestTimer(restDuration)
       }
@@ -182,10 +205,80 @@ export function DailyChecklist() {
     }
   }
 
+  const handleStartGuidedWorkout = () => {
+    const pending = exercisesForDay.filter((ex) => !completedExerciseIds.includes(ex.id))
+    if (pending.length === 0) return
+    setGroupPickerExercises(pending)
+  }
+
+  const handleConfirmGroups = (groups: Exercise[][]) => {
+    setGuidedGroups(groups)
+    setGroupPickerExercises(null)
+  }
+
+  const handleGuidedLog = async (
+    exercise: Exercise,
+    performance: Omit<ExercisePerformance, 'exerciseId' | 'timestamp'>
+  ) => {
+    try {
+      await logExercisePerformance(exercise, performance)
+    } catch (err) {
+      console.error('Failed to submit performance:', err)
+      setError('Failed to save workout. Please try again.')
+    }
+  }
+
+  const handleGuidedComplete = () => {
+    // Reads the store directly (not the reactive `sessions` above) because this runs at
+    // the tail of an async chain that began at an earlier render — the closure captured
+    // then would be stale and miss the just-logged final exercise.
+    const loggedIds = new Set((guidedGroups ?? []).flat().map((ex) => ex.id))
+    const session = useWorkoutSessionsStore.getState().sessions.find((s) => s.date === selectedDate)
+    const loggedPerformances = (session?.exercises ?? []).filter((p) => loggedIds.has(p.exerciseId))
+
+    setSessionSummary({
+      count: loggedPerformances.filter((p) => p.completed).length,
+      volumeKg: calculateSessionVolume(loggedPerformances),
+    })
+    setGuidedGroups(null)
+  }
+
   const handleDateChange = (date: string) => {
     setSelectedDate(date)
     setActiveExercise(null)
   }
+
+  if (sessionSummary) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-16 px-2 text-center">
+        <div className="w-16 h-16 rounded-full bg-accent-500/15 flex items-center justify-center text-accent-400 text-3xl">
+          ✓
+        </div>
+        <div>
+          <h3 className="text-ink">Workout complete</h3>
+          <p className="text-ink-muted text-sm mt-1.5">Nice work — that's today's session done.</p>
+        </div>
+        <div className="flex gap-3 w-full max-w-xs">
+          <div className="stat-tile flex-1 items-center !p-3.5">
+            <div className="text-xl font-semibold text-ink">{sessionSummary.count}</div>
+            <div className="text-[11px] text-ink-muted">exercises</div>
+          </div>
+          <div className="stat-tile flex-1 items-center !p-3.5">
+            <div className="text-xl font-semibold text-ink">
+              {formatWeight(sessionSummary.volumeKg, weightUnit)}
+              {weightUnit}
+            </div>
+            <div className="text-[11px] text-ink-muted">volume</div>
+          </div>
+        </div>
+        <button className="btn-primary w-full max-w-xs mt-1" onClick={() => setSessionSummary(null)}>
+          Done
+        </button>
+      </div>
+    )
+  }
+
+  const hasPendingWork = exercisesForDay.some((ex) => !completedExerciseIds.includes(ex.id))
 
   return (
     <div className="space-y-5">
@@ -205,29 +298,56 @@ export function DailyChecklist() {
 
       {prMessage && <PRToast key={prToastId} message={prMessage} onDismissed={() => setPrMessage(null)} />}
 
-      <DaySelector selectedDate={selectedDate} onSelectedDateChange={handleDateChange} />
-
-      {exercisesForDay.length === 0 ? (
-        <div className="card-pad text-center py-14">
-          <div className="empty-blob animate-float">🌙</div>
-          <p className="text-ink font-semibold">Rest day</p>
-          <p className="text-ink-muted text-sm mt-1">No exercises scheduled for this day.</p>
-        </div>
-      ) : (
-        <ChecklistItems items={checklistItems} onToggle={handleToggle} />
-      )}
-
-      {activeExercise && (
-        <PerformanceForm
-          key={`${activeExercise.id}-${existingPerformance?.timestamp ?? 'new'}`}
-          exerciseId={activeExercise.id}
-          exerciseName={activeExercise.name}
-          targetSets={activeExercise.targetSets}
-          targetReps={activeExercise.targetReps}
-          existingPerformance={existingPerformance}
-          onSubmit={handlePerformanceSubmit}
-          onCancel={() => setActiveExercise(null)}
+      {groupPickerExercises ? (
+        <SessionGroupPicker
+          exercises={groupPickerExercises}
+          onStart={handleConfirmGroups}
+          onCancel={() => setGroupPickerExercises(null)}
         />
+      ) : guidedGroups ? (
+        <GuidedSession
+          groups={guidedGroups}
+          sessions={sessions}
+          restDuration={restDuration}
+          onLogExercise={handleGuidedLog}
+          onComplete={handleGuidedComplete}
+        />
+      ) : (
+        <>
+          <DaySelector selectedDate={selectedDate} onSelectedDateChange={handleDateChange} />
+
+          {exercisesForDay.length === 0 ? (
+            <div className="card-pad text-center py-14">
+              <div className="empty-blob animate-float">🌙</div>
+              <p className="text-ink font-semibold">Rest day</p>
+              <p className="text-ink-muted text-sm mt-1">No exercises scheduled for this day.</p>
+            </div>
+          ) : (
+            <>
+              <ChecklistItems items={checklistItems} onToggle={handleToggle} />
+              {hasPendingWork && (
+                <button className="btn-primary w-full" onClick={handleStartGuidedWorkout}>
+                  Start guided workout
+                </button>
+              )}
+            </>
+          )}
+
+          {activeExercise && (
+            <PerformanceForm
+              key={`${activeExercise.id}-${existingPerformance?.timestamp ?? 'new'}`}
+              exerciseId={activeExercise.id}
+              exerciseName={activeExercise.name}
+              targetSets={activeExercise.targetSets}
+              targetReps={activeExercise.targetReps}
+              notes={activeExercise.notes}
+              existingPerformance={existingPerformance}
+              suggestion={activeExerciseSuggestion}
+              onSubmit={handlePerformanceSubmit}
+              onCancel={() => setActiveExercise(null)}
+            />
+          )}
+        </>
       )}
     </div>
   )

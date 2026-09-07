@@ -13,8 +13,10 @@ import {
   getDayOfWeek,
   getExercisesForDate,
   mergeRoutineWithSession,
+  calculateStreak,
+  calculateSessionVolume,
 } from './calculations'
-import { createMockRoutine, createMockWorkoutSession, createMockExercise } from '@/tests/factories'
+import { createMockRoutine, createMockWorkoutSession, createMockExercise, createMockExercisePerformance } from '@/tests/factories'
 import type { Routine, WorkoutSession } from '@/types'
 
 const MONDAY = '2025-01-06'
@@ -252,5 +254,80 @@ describe('getExercisesForDate / mergeRoutineWithSession', () => {
     const routine = routineWith({ monday: ['deleted-exercise-id'] })
     const merged = mergeRoutineWithSession(MONDAY, routine, [], [])
     expect(merged).toEqual([])
+  })
+})
+
+describe('calculateStreak', () => {
+  const TUESDAY = '2025-01-07'
+  const WEDNESDAY = '2025-01-08'
+
+  it('returns 0 when there is no active routine', () => {
+    expect(calculateStreak(null, [], WEDNESDAY)).toBe(0)
+  })
+
+  it('counts completed prior days without requiring today to be completed yet', () => {
+    const routine = routineWith({ monday: ['ex1'], tuesday: ['ex1'], wednesday: ['ex1'] })
+    const sessions = [
+      sessionWith(MONDAY, [{ exerciseId: 'ex1', completed: true, timestamp: 1 }]),
+      sessionWith(TUESDAY, [{ exerciseId: 'ex1', completed: true, timestamp: 2 }]),
+      // Wednesday (today) not logged yet
+    ]
+    expect(calculateStreak(routine, sessions, WEDNESDAY)).toBe(2)
+  })
+
+  it('includes today when it was also completed', () => {
+    const routine = routineWith({ monday: ['ex1'], tuesday: ['ex1'], wednesday: ['ex1'] })
+    const sessions = [
+      sessionWith(MONDAY, [{ exerciseId: 'ex1', completed: true, timestamp: 1 }]),
+      sessionWith(TUESDAY, [{ exerciseId: 'ex1', completed: true, timestamp: 2 }]),
+      sessionWith(WEDNESDAY, [{ exerciseId: 'ex1', completed: true, timestamp: 3 }]),
+    ]
+    expect(calculateStreak(routine, sessions, WEDNESDAY)).toBe(3)
+  })
+
+  it('skips rest days (no assignment) without breaking the streak', () => {
+    // Tuesday has nothing assigned — a rest day between two training days.
+    const routine = routineWith({ monday: ['ex1'], wednesday: ['ex1'] })
+    const sessions = [
+      sessionWith(MONDAY, [{ exerciseId: 'ex1', completed: true, timestamp: 1 }]),
+      sessionWith(WEDNESDAY, [{ exerciseId: 'ex1', completed: true, timestamp: 2 }]),
+    ]
+    expect(calculateStreak(routine, sessions, WEDNESDAY)).toBe(2)
+  })
+
+  it('stops at the first earlier day with an incomplete assignment', () => {
+    const routine = routineWith({ monday: ['ex1'], tuesday: ['ex1'] })
+    const sessions = [
+      // Monday not completed at all
+      sessionWith(TUESDAY, [{ exerciseId: 'ex1', completed: true, timestamp: 1 }]),
+    ]
+    // Today is Tuesday and is completed, but Monday breaks the streak from continuing further back.
+    expect(calculateStreak(routine, sessions, TUESDAY)).toBe(1)
+  })
+
+  it('requires every assigned exercise on a day to be completed, not just one', () => {
+    const routine = routineWith({ monday: ['ex1', 'ex2'] })
+    const sessions = [sessionWith(MONDAY, [{ exerciseId: 'ex1', completed: true, timestamp: 1 }])]
+    expect(calculateStreak(routine, sessions, MONDAY)).toBe(0)
+  })
+})
+
+describe('calculateSessionVolume', () => {
+  it('sums weight × sets × reps across completed exercises', () => {
+    const performances = [
+      createMockExercisePerformance({ completed: true, weight: 60, actualSets: 3, actualReps: 10 }),
+      createMockExercisePerformance({ completed: true, weight: 20, actualSets: 4, actualReps: 8 }),
+    ]
+    expect(calculateSessionVolume(performances)).toBe(60 * 3 * 10 + 20 * 4 * 8)
+  })
+
+  it('ignores exercises that are not completed', () => {
+    const performances = [createMockExercisePerformance({ completed: false, weight: 60, actualSets: 3, actualReps: 10 })]
+    expect(calculateSessionVolume(performances)).toBe(0)
+  })
+
+  it('treats a missing weight (bodyweight exercise) as contributing 0', () => {
+    const performances = [createMockExercisePerformance({ completed: true, weight: undefined, actualSets: 3, actualReps: 10 })]
+    expect(calculateSessionVolume(performances)).toBe(0)
   })
 })

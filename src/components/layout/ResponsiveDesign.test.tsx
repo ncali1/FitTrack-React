@@ -104,9 +104,9 @@ describe('Responsive Design', () => {
       expect(container.innerHTML).toContain('hidden')
     })
 
-    it('renders all 7 navigation tabs', () => {
+    it('renders all 5 navigation tabs', () => {
       render(<TopBar />)
-      for (const label of ['Exercises', 'Library', 'Routine', 'Today', 'Summary', 'Progress', 'Weight']) {
+      for (const label of ['Home', 'Train', 'Library', 'Progress', 'Profile']) {
         expect(screen.getByText(label)).toBeTruthy()
       }
     })
@@ -124,9 +124,9 @@ describe('Responsive Design', () => {
       expect(hasResponsiveClass(container, 'sm:hidden')).toBe(true)
     })
 
-    it('renders all 6 navigation tabs', () => {
+    it('renders all 5 navigation tabs', () => {
       render(<BottomNav />)
-      for (const label of ['Exercises', 'Routine', 'Today', 'Summary', 'Progress', 'Weight']) {
+      for (const label of ['Home', 'Train', 'Library', 'Progress', 'Profile']) {
         expect(screen.getByText(label)).toBeTruthy()
       }
     })
@@ -141,8 +141,8 @@ describe('Responsive Design', () => {
       const user = userEvent.setup()
       render(<BottomNav />)
 
-      await user.click(screen.getByText('Routine'))
-      expect(useUIStore.getState().activeTab).toBe('routine')
+      await user.click(screen.getByText('Profile'))
+      expect(useUIStore.getState().activeTab).toBe('profile')
     })
   })
 
