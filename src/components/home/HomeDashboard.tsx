@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { toast } from 'sonner'
 import { useRoutineStore, selectActiveRoutine } from '@/stores/routine'
 import { useExercisesStore } from '@/stores/exercises'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
@@ -23,9 +25,12 @@ export function HomeDashboard() {
   const activeRoutine = selectActiveRoutine(routines)
   const exercises = useExercisesStore((s) => s.exercises)
   const sessions = useWorkoutSessionsStore((s) => s.sessions)
+  const assignExercise = useRoutineStore((s) => s.assignExercise)
   const logs = useBodyWeightStore((s) => s.logs)
   const weightUnit = useSettingsStore((s) => s.weightUnit)
   const setActiveTab = useUIStore((s) => s.setActiveTab)
+
+  const [repeating, setRepeating] = useState(false)
 
   const todayStr = todayString()
   const todayExerciseIds = activeRoutine?.weeklyAssignments[getDayOfWeek(todayStr)] ?? []
@@ -33,6 +38,31 @@ export function HomeDashboard() {
     .map((id) => exercises.find((e) => e.id === id))
     .filter((e): e is NonNullable<typeof e> => e !== undefined)
   const isRestDay = todayExercises.length === 0
+
+  const lastWorkoutSession =
+    [...sessions]
+      .filter((s) => s.date < todayStr && s.exercises.some((e) => e.completed))
+      .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null
+
+  const handleRepeatLastWorkout = async () => {
+    if (!lastWorkoutSession) return
+    setRepeating(true)
+    try {
+      const exerciseIds = [
+        ...new Set(lastWorkoutSession.exercises.filter((e) => e.completed).map((e) => e.exerciseId)),
+      ].filter((id) => exercises.some((ex) => ex.id === id) && !todayExerciseIds.includes(id))
+
+      for (const id of exerciseIds) {
+        await assignExercise(getDayOfWeek(todayStr), id)
+      }
+      toast.success("Last workout's exercises added to today's plan")
+    } catch (err) {
+      console.error('Failed to repeat last workout:', err)
+      toast.error('Failed to add exercises. Please try again.')
+    } finally {
+      setRepeating(false)
+    }
+  }
 
   const weekSummary = activeRoutine
     ? calculateWeeklySummary(getWeekStart(todayStr), activeRoutine, sessions)
@@ -62,6 +92,11 @@ export function HomeDashboard() {
           <div className="badge-muted mb-2">Today</div>
           <h3 className="text-ink">Rest day</h3>
           <p className="text-ink-muted text-sm mt-1">No training scheduled — recovery is part of the plan.</p>
+          {lastWorkoutSession && (
+            <button className="btn-secondary w-full mt-3" disabled={repeating} onClick={handleRepeatLastWorkout}>
+              {repeating ? 'Adding...' : 'Repeat last workout'}
+            </button>
+          )}
         </div>
       ) : (
         <div className="card-pad space-y-3">

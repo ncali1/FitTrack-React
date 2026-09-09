@@ -330,4 +330,12 @@ describe('calculateSessionVolume', () => {
     const performances = [createMockExercisePerformance({ completed: true, weight: undefined, actualSets: 3, actualReps: 10 })]
     expect(calculateSessionVolume(performances)).toBe(0)
   })
+
+  it('excludes warm-up sets entirely', () => {
+    const performances = [
+      createMockExercisePerformance({ completed: true, isWarmup: true, weight: 20, actualSets: 2, actualReps: 10 }),
+      createMockExercisePerformance({ completed: true, weight: 60, actualSets: 3, actualReps: 10 }),
+    ]
+    expect(calculateSessionVolume(performances)).toBe(60 * 3 * 10)
+  })
 })

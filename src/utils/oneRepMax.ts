@@ -27,7 +27,7 @@ export function bestEstimatedOneRepMax(performances: ExercisePerformance[]): Bes
   let best: BestOneRepMax | null = null
 
   for (const p of performances) {
-    if (!p.completed || typeof p.weight !== 'number' || typeof p.actualReps !== 'number') continue
+    if (!p.completed || p.isWarmup || typeof p.weight !== 'number' || typeof p.actualReps !== 'number') continue
     const estimated = estimateOneRepMax(p.weight, p.actualReps)
     if (best === null || estimated > best.estimated) {
       best = { estimated, weightKg: p.weight, reps: p.actualReps }

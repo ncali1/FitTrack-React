@@ -99,6 +99,7 @@ export function ChecklistItems({
                   {item.performance.rpe != null && <> · RPE {item.performance.rpe}</>}
                 </span>
                 {(item.isWeightPR || item.isRepsPR) && <span className="badge-lime !py-0.5">🏆 PR</span>}
+                {item.performance.isWarmup && <span className="badge-muted !py-0.5">Warm-up</span>}
               </div>
             )}
           </label>

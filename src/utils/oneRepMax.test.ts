@@ -24,6 +24,14 @@ describe('bestEstimatedOneRepMax', () => {
     expect(bestEstimatedOneRepMax(performances)).toBeNull()
   })
 
+  it('ignores warm-up sets, even a heavier one that would otherwise win', () => {
+    const performances = [
+      createMockExercisePerformance({ isWarmup: true, weight: 200, actualReps: 5 }),
+      createMockExercisePerformance({ weight: 80, actualReps: 10 }),
+    ]
+    expect(bestEstimatedOneRepMax(performances)?.weightKg).toBe(80)
+  })
+
   it('picks the set with the highest estimated 1RM, not the heaviest weight', () => {
     const performances = [
       // Estimated 1RM: 100 * (1 + 1/30) ≈ 103.3

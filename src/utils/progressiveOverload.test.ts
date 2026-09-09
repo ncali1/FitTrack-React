@@ -49,6 +49,14 @@ describe('suggestNextPerformance', () => {
     expect(suggestNextPerformance(history)?.weight).toBe(60)
   })
 
+  it('skips warm-up entries and bases the suggestion on the last working set', () => {
+    const history = [
+      createMockExercisePerformance({ isWarmup: true, weight: 20, actualSets: 2, actualReps: 10 }),
+      createMockExercisePerformance({ difficultyLevel: 'moderate', weight: 60, actualSets: 3, actualReps: 8 }),
+    ]
+    expect(suggestNextPerformance(history)?.weight).toBe(60)
+  })
+
   it('handles a bodyweight exercise (no weight logged) without suggesting a weight', () => {
     const history = [
       createMockExercisePerformance({ difficultyLevel: 'easy', weight: undefined, actualSets: 3, actualReps: 12 }),

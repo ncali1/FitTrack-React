@@ -12,6 +12,8 @@ export interface Exercise {
   targetMuscleGroups: string[]
   /** Optional free-text form cues, a video link, or any other reminder for this exercise. */
   notes?: string
+  /** Overrides the app-wide default rest duration (seconds) for this exercise specifically. */
+  restSeconds?: number
   /** Unix milliseconds */
   createdAt: number
   /** Unix milliseconds */
@@ -50,6 +52,10 @@ export interface ExercisePerformance {
    *  more granular alternative to `difficultyLevel` for anyone who wants it, not a
    *  replacement; nothing in the app requires it to be set. */
   rpe?: number
+  /** Marks this logged performance as a warm-up rather than a working set — excluded from
+   *  personal records, session volume, muscle-balance set counts, 1RM estimates, and
+   *  progressive-overload suggestions, all of which should reflect working effort only. */
+  isWarmup?: boolean
   /** Unix milliseconds */
   timestamp: number
 }
@@ -60,6 +66,9 @@ export interface WorkoutSession {
   /** YYYY-MM-DD format */
   date: string
   exercises: ExercisePerformance[]
+  /** Wall-clock length of a completed guided session, in seconds — set once when a
+   *  guided workout finishes; absent for days logged entirely via the ad-hoc checklist. */
+  durationSeconds?: number
   /** Unix milliseconds */
   createdAt: number
   /** Unix milliseconds */

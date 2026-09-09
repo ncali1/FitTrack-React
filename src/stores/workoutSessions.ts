@@ -106,6 +106,7 @@ export const useWorkoutSessionsStore = create<WorkoutSessionsState>()((set, get)
         id: existing.id,
         date: updates.date ?? existing.date,
         exercises: updates.exercises ?? existing.exercises,
+        durationSeconds: 'durationSeconds' in updates ? updates.durationSeconds : existing.durationSeconds,
         createdAt: existing.createdAt,
         updatedAt: Date.now(),
       }

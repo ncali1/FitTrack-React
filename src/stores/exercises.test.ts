@@ -70,6 +70,23 @@ describe('useExercisesStore', () => {
       const withBlankNotes = await useExercisesStore.getState().createExercise('Squat', 3, 10, ['Legs'], '   ')
       expect(withBlankNotes.notes).toBeUndefined()
     })
+
+    it('saves a custom rest duration when provided', async () => {
+      const exercise = await useExercisesStore
+        .getState()
+        .createExercise('Bench Press', 3, 10, ['Chest'], undefined, 180)
+      expect(exercise.restSeconds).toBe(180)
+    })
+
+    it('omits restSeconds when not provided or zero', async () => {
+      const withoutRest = await useExercisesStore.getState().createExercise('Bench Press', 3, 10, ['Chest'])
+      expect(withoutRest.restSeconds).toBeUndefined()
+
+      const withZeroRest = await useExercisesStore
+        .getState()
+        .createExercise('Squat', 3, 10, ['Legs'], undefined, 0)
+      expect(withZeroRest.restSeconds).toBeUndefined()
+    })
   })
 
   describe('Editing exercises', () => {
@@ -124,6 +141,30 @@ describe('useExercisesStore', () => {
 
       const updated = await updateExercise(exercise.id, { targetSets: 5 })
       expect(updated.notes).toBe('Pause at the bottom')
+    })
+
+    it('adds a custom rest duration to an exercise that had none', async () => {
+      const { createExercise, updateExercise } = useExercisesStore.getState()
+      const exercise = await createExercise('Bench Press', 3, 10, ['Chest'])
+
+      const updated = await updateExercise(exercise.id, { restSeconds: 180 })
+      expect(updated.restSeconds).toBe(180)
+    })
+
+    it('clears restSeconds when updated to 0', async () => {
+      const { createExercise, updateExercise } = useExercisesStore.getState()
+      const exercise = await createExercise('Bench Press', 3, 10, ['Chest'], undefined, 180)
+
+      const updated = await updateExercise(exercise.id, { restSeconds: 0 })
+      expect(updated.restSeconds).toBeUndefined()
+    })
+
+    it('leaves restSeconds untouched when the update omits the field entirely', async () => {
+      const { createExercise, updateExercise } = useExercisesStore.getState()
+      const exercise = await createExercise('Bench Press', 3, 10, ['Chest'], undefined, 180)
+
+      const updated = await updateExercise(exercise.id, { targetSets: 5 })
+      expect(updated.restSeconds).toBe(180)
     })
   })
 

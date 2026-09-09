@@ -116,10 +116,21 @@ export function ProgressGraphs() {
     completionRate: w.totalAssigned === 0 ? 0 : Math.round((w.completionCount / w.totalAssigned) * 100),
   }))
 
+  const sessionDurations = sessions.map((s) => s.durationSeconds).filter((d): d is number => d != null)
+  const avgSessionMinutes =
+    sessionDurations.length > 0
+      ? Math.round(sessionDurations.reduce((sum, d) => sum + d, 0) / sessionDurations.length / 60)
+      : null
+
   return (
     <div className="space-y-6">
       <div>
-        <h6 className="text-ink-muted text-sm mb-2.5">This week</h6>
+        <div className="flex items-center justify-between mb-2.5">
+          <h6 className="text-ink-muted text-sm">This week</h6>
+          {avgSessionMinutes !== null && (
+            <span className="text-ink-faint text-xs">Avg session: {avgSessionMinutes}m</span>
+          )}
+        </div>
         <WeeklyBars breakdown={weekSummary?.dailyBreakdown ?? {}} today={getDayOfWeek(today)} />
       </div>
 

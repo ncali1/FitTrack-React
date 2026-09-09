@@ -26,13 +26,13 @@ const EMPTY_RECORD: PersonalRecord = {
 
 /**
  * Calculates the personal records for an exercise from its full performance history.
- * Only `completed` entries are considered.
+ * Only completed, non-warm-up entries are considered.
  */
 export function calculatePersonalRecord(performances: ExercisePerformance[]): PersonalRecord {
   let record = { ...EMPTY_RECORD }
 
   for (const p of performances) {
-    if (!p.completed) continue
+    if (!p.completed || p.isWarmup) continue
 
     if (typeof p.weight === 'number') {
       if (record.maxWeight === null || p.weight > record.maxWeight) {
@@ -51,12 +51,15 @@ export function calculatePersonalRecord(performances: ExercisePerformance[]): Pe
 
 /**
  * Determines whether a candidate performance (about to be submitted) would set a new
- * weight and/or reps record, given the exercise's prior performance history.
+ * weight and/or reps record, given the exercise's prior performance history. A warm-up
+ * candidate never counts as a PR, regardless of the numbers.
  */
 export function detectNewRecords(
   priorPerformances: ExercisePerformance[],
-  candidate: { weight?: number; actualReps?: number }
+  candidate: { weight?: number; actualReps?: number; isWarmup?: boolean }
 ): { isWeightPR: boolean; isRepsPR: boolean } {
+  if (candidate.isWarmup) return { isWeightPR: false, isRepsPR: false }
+
   const prior = calculatePersonalRecord(priorPerformances)
 
   const isWeightPR =

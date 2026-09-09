@@ -69,6 +69,18 @@ describe('calculateMuscleGroupSets', () => {
     expect(calculateMuscleGroupSets(sessions, [exercise], '2025-01-01', '2025-01-31')).toEqual([])
   })
 
+  it('ignores warm-up sets', () => {
+    const exercise = createMockExercise({ id: 'bench', targetMuscleGroups: ['Chest'] })
+    const sessions = [
+      createMockWorkoutSession({
+        date: '2025-01-06',
+        exercises: [createMockExercisePerformance({ exerciseId: 'bench', isWarmup: true, actualSets: 4 })],
+      }),
+    ]
+
+    expect(calculateMuscleGroupSets(sessions, [exercise], '2025-01-01', '2025-01-31')).toEqual([])
+  })
+
   it('sorts descending by set count', () => {
     const a = createMockExercise({ id: 'a', targetMuscleGroups: ['Core'] })
     const b = createMockExercise({ id: 'b', targetMuscleGroups: ['Back'] })

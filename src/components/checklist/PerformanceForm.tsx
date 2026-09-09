@@ -13,6 +13,7 @@ interface FormData {
   weight: number | null
   difficultyLevel: DifficultyLevel | null
   rpe: number | null
+  isWarmup: boolean
 }
 
 type FormErrors = Partial<Record<keyof FormData, string>>
@@ -78,6 +79,7 @@ export function PerformanceForm({
         weight: fromKg(existingPerformance.weight, weightUnit),
         difficultyLevel: existingPerformance.difficultyLevel ?? null,
         rpe: existingPerformance.rpe ?? null,
+        isWarmup: existingPerformance.isWarmup ?? false,
       }
     }
     if (suggestion) {
@@ -87,9 +89,10 @@ export function PerformanceForm({
         weight: fromKg(suggestion.weight, weightUnit),
         difficultyLevel: null,
         rpe: null,
+        isWarmup: false,
       }
     }
-    return { actualSets: null, actualReps: null, weight: null, difficultyLevel: null, rpe: null }
+    return { actualSets: null, actualReps: null, weight: null, difficultyLevel: null, rpe: null, isWarmup: false }
   })
   const [errors, setErrors] = useState<FormErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -138,6 +141,7 @@ export function PerformanceForm({
         weight: toKg(form.weight, weightUnit) ?? undefined,
         difficultyLevel: form.difficultyLevel!,
         rpe: form.rpe ?? undefined,
+        isWarmup: form.isWarmup || undefined,
       })
     } finally {
       setIsSubmitting(false)
@@ -198,6 +202,19 @@ export function PerformanceForm({
             {errors.actualReps && <p className="field-error">{errors.actualReps}</p>}
           </div>
         </div>
+
+        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={form.isWarmup}
+            onChange={(e) => setForm((prev) => ({ ...prev, isWarmup: e.target.checked }))}
+            className="w-4 h-4 accent-accent-500"
+          />
+          <span className="text-sm text-ink-muted">
+            Warm-up set{' '}
+            <span className="text-ink-faint">— excluded from PRs, volume, and suggestions</span>
+          </span>
+        </label>
 
         {/* Weight (optional) */}
         <div>

@@ -26,7 +26,7 @@ export function calculateMuscleGroupSets(
     if (session.date < startDateStr || session.date > endDateStr) continue
 
     for (const performance of session.exercises) {
-      if (!performance.completed) continue
+      if (!performance.completed || performance.isWarmup) continue
       const exercise = exercises.find((e) => e.id === performance.exerciseId)
       if (!exercise) continue
 

@@ -13,6 +13,8 @@ interface FormData {
   targetReps: number
   targetMuscleGroups: string[]
   notes: string
+  /** Custom rest duration override, in seconds; empty string means "use the app default". */
+  restSeconds: number | null
 }
 
 type FormErrors = Partial<Record<keyof FormData, string>>
@@ -34,7 +36,7 @@ export const MUSCLE_GROUP_OPTIONS = [
 ]
 
 function blankForm(): FormData {
-  return { name: '', targetSets: 3, targetReps: 10, targetMuscleGroups: [], notes: '' }
+  return { name: '', targetSets: 3, targetReps: 10, targetMuscleGroups: [], notes: '', restSeconds: null }
 }
 
 function toFormData(exercise: Exercise): FormData {
@@ -44,6 +46,7 @@ function toFormData(exercise: Exercise): FormData {
     targetReps: exercise.targetReps,
     targetMuscleGroups: [...exercise.targetMuscleGroups],
     notes: exercise.notes ?? '',
+    restSeconds: exercise.restSeconds ?? null,
   }
 }
 
@@ -116,6 +119,7 @@ export function ExerciseForm({
           targetReps: form.targetReps,
           targetMuscleGroups: [...form.targetMuscleGroups],
           notes: form.notes.trim() || undefined,
+          restSeconds: form.restSeconds ?? 0,
         })
         toast.success(`${updated.name} updated`)
       } else {
@@ -124,7 +128,8 @@ export function ExerciseForm({
           form.targetSets,
           form.targetReps,
           [...form.targetMuscleGroups],
-          form.notes
+          form.notes,
+          form.restSeconds ?? undefined
         )
         toast.success(`${created.name} created`)
       }
@@ -249,6 +254,25 @@ export function ExerciseForm({
                 placeholder="Form cues, a video link, anything worth remembering"
                 rows={2}
                 className="field-input resize-none"
+              />
+            </div>
+
+            {/* Custom Rest Duration */}
+            <div>
+              <label htmlFor="restSeconds" className="field-label">
+                Custom rest (seconds){' '}
+                <span className="text-ink-faint normal-case font-normal">optional — overrides the default</span>
+              </label>
+              <input
+                id="restSeconds"
+                type="number"
+                min={0}
+                value={form.restSeconds ?? ''}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, restSeconds: e.target.value === '' ? null : Number(e.target.value) }))
+                }
+                placeholder="e.g., 180 for heavy compound lifts"
+                className="field-input"
               />
             </div>
 

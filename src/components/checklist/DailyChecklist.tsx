@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRoutineStore, selectRoutineForDay } from '@/stores/routine'
 import { useExercisesStore } from '@/stores/exercises'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
@@ -77,6 +77,8 @@ export function DailyChecklist() {
   const [groupPickerExercises, setGroupPickerExercises] = useState<Exercise[] | null>(null)
   const [guidedGroups, setGuidedGroups] = useState<Exercise[][] | null>(null)
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null)
+  /** Wall-clock start of the current guided session, for computing its total duration on completion. */
+  const guidedSessionStartRef = useRef<number | null>(null)
 
   useEffect(() => {
     Promise.all([loadRoutines(), loadExercises(), loadSessions()]).catch((err) => {
@@ -117,6 +119,7 @@ export function DailyChecklist() {
       const flags = detectNewRecords(priorPerformances, {
         weight: performance.weight,
         actualReps: performance.actualReps,
+        isWarmup: performance.isWarmup,
       })
       isWeightPR = flags.isWeightPR
       isRepsPR = flags.isRepsPR
@@ -173,6 +176,7 @@ export function DailyChecklist() {
     const { isWeightPR, isRepsPR } = detectNewRecords(priorPerformances, {
       weight: performance.weight,
       actualReps: performance.actualReps,
+      isWarmup: performance.isWarmup,
     })
 
     const sessionId = await ensureSession()
@@ -197,7 +201,7 @@ export function DailyChecklist() {
       await logExercisePerformance(activeExercise, performance)
       setActiveExercise(null)
       if (performance.completed) {
-        startRestTimer(restDuration)
+        startRestTimer(activeExercise.restSeconds ?? restDuration)
       }
     } catch (err) {
       console.error('Failed to submit performance:', err)
@@ -212,6 +216,7 @@ export function DailyChecklist() {
   }
 
   const handleConfirmGroups = (groups: Exercise[][]) => {
+    guidedSessionStartRef.current = Date.now()
     setGuidedGroups(groups)
     setGroupPickerExercises(null)
   }
@@ -235,6 +240,15 @@ export function DailyChecklist() {
     const loggedIds = new Set((guidedGroups ?? []).flat().map((ex) => ex.id))
     const session = useWorkoutSessionsStore.getState().sessions.find((s) => s.date === selectedDate)
     const loggedPerformances = (session?.exercises ?? []).filter((p) => loggedIds.has(p.exerciseId))
+
+    if (session && guidedSessionStartRef.current !== null) {
+      const durationSeconds = Math.round((Date.now() - guidedSessionStartRef.current) / 1000)
+      useWorkoutSessionsStore
+        .getState()
+        .updateSession(session.id, { durationSeconds })
+        .catch((err) => console.error('Failed to save session duration:', err))
+    }
+    guidedSessionStartRef.current = null
 
     setSessionSummary({
       count: loggedPerformances.filter((p) => p.completed).length,

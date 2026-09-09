@@ -88,6 +88,31 @@ describe('useWorkoutSessionsStore', () => {
     })
   })
 
+  describe('updateSession', () => {
+    it('sets durationSeconds on a session that had none', async () => {
+      const { createSession, updateSession } = useWorkoutSessionsStore.getState()
+      const session = await createSession('2025-01-06')
+
+      const updated = await updateSession(session.id, { durationSeconds: 1800 })
+      expect(updated.durationSeconds).toBe(1800)
+    })
+
+    it('leaves durationSeconds untouched when the update omits the field entirely', async () => {
+      const { createSession, updateSession } = useWorkoutSessionsStore.getState()
+      const session = await createSession('2025-01-06')
+      await updateSession(session.id, { durationSeconds: 1800 })
+
+      const updated = await updateSession(session.id, { date: '2025-01-07' })
+      expect(updated.durationSeconds).toBe(1800)
+    })
+
+    it('throws when updating a non-existent session', async () => {
+      await expect(useWorkoutSessionsStore.getState().updateSession('missing-id', { durationSeconds: 60 })).rejects.toThrow(
+        'Session not found'
+      )
+    })
+  })
+
   describe('sessionByDate / performanceByExercise', () => {
     it('returns undefined for a date with no session', () => {
       expect(useWorkoutSessionsStore.getState().sessionByDate('2099-01-01')).toBeUndefined()

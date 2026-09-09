@@ -34,6 +34,15 @@ describe('calculatePersonalRecord', () => {
     expect(record.maxReps).toBe(15)
     expect(record.maxRepsWeight).toBe(20)
   })
+
+  it('ignores warm-up sets, even ones that would otherwise be the record', () => {
+    const record = calculatePersonalRecord([
+      createMockExercisePerformance({ weight: 999, actualReps: 999, isWarmup: true }),
+      createMockExercisePerformance({ weight: 50, actualReps: 8 }),
+    ])
+    expect(record.maxWeight).toBe(50)
+    expect(record.maxReps).toBe(8)
+  })
 })
 
 describe('detectNewRecords', () => {
@@ -58,5 +67,13 @@ describe('detectNewRecords', () => {
   it('does not flag a PR when the candidate omits weight/reps entirely', () => {
     const prior = [createMockExercisePerformance({ weight: 50, actualReps: 8 })]
     expect(detectNewRecords(prior, {})).toEqual({ isWeightPR: false, isRepsPR: false })
+  })
+
+  it('never flags a PR for a warm-up candidate, regardless of the numbers', () => {
+    const prior = [createMockExercisePerformance({ weight: 50, actualReps: 8 })]
+    expect(detectNewRecords(prior, { weight: 999, actualReps: 999, isWarmup: true })).toEqual({
+      isWeightPR: false,
+      isRepsPR: false,
+    })
   })
 })

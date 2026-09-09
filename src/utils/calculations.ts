@@ -178,14 +178,14 @@ export function getExerciseHistory(exerciseId: string, sessions: WorkoutSession[
 // ── Session Volume ──────────────────────────────────────────────────────
 
 /**
- * Total training volume (weight × sets × reps, summed across completed exercises) in
- * kilograms. Exercises logged without a weight (bodyweight-only) contribute 0 rather
- * than being excluded, since they still count toward the exercise/rep totals shown
- * alongside volume, just not toward the kg figure itself.
+ * Total training volume (weight × sets × reps, summed across completed working sets) in
+ * kilograms. Warm-up sets are excluded entirely. Exercises logged without a weight
+ * (bodyweight-only) contribute 0 rather than being excluded, since they still count
+ * toward the exercise/rep totals shown alongside volume, just not toward the kg figure.
  */
 export function calculateSessionVolume(performances: ExercisePerformance[]): number {
   return performances
-    .filter((p) => p.completed)
+    .filter((p) => p.completed && !p.isWarmup)
     .reduce((sum, p) => sum + (p.weight ?? 0) * (p.actualSets ?? 0) * (p.actualReps ?? 0), 0)
 }
 

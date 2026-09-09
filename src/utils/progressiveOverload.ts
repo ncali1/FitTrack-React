@@ -24,7 +24,7 @@ export interface PerformanceSuggestion {
  * performance to base a suggestion on.
  */
 export function suggestNextPerformance(history: ExercisePerformance[]): PerformanceSuggestion | null {
-  const last = history.find((p) => p.completed)
+  const last = history.find((p) => p.completed && !p.isWarmup)
   if (!last || last.actualReps == null || last.actualSets == null) return null
 
   if (last.difficultyLevel === 'easy' && typeof last.weight === 'number') {

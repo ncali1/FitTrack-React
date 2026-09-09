@@ -16,7 +16,8 @@ interface ExercisesState {
     targetSets: number,
     targetReps: number,
     targetMuscleGroups: string[],
-    notes?: string
+    notes?: string,
+    restSeconds?: number
   ) => Promise<Exercise>
   updateExercise: (id: string, updates: Partial<Omit<Exercise, 'id' | 'createdAt'>>) => Promise<Exercise>
   deleteExercise: (id: string) => Promise<void>
@@ -33,7 +34,7 @@ export const useExercisesStore = create<ExercisesState>()((set, get) => ({
 
   exerciseById: (id) => get().exercises.find((ex) => ex.id === id),
 
-  createExercise: async (name, targetSets, targetReps, targetMuscleGroups, notes) => {
+  createExercise: async (name, targetSets, targetReps, targetMuscleGroups, notes, restSeconds) => {
     set({ loading: true, error: null })
     try {
       const errors = validateExerciseForm({ name, targetSets, targetReps, targetMuscleGroups })
@@ -49,6 +50,7 @@ export const useExercisesStore = create<ExercisesState>()((set, get) => ({
         targetReps,
         targetMuscleGroups,
         ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+        ...(restSeconds ? { restSeconds } : {}),
         createdAt: now,
         updatedAt: now,
       }
@@ -84,6 +86,7 @@ export const useExercisesStore = create<ExercisesState>()((set, get) => ({
         targetReps: updates.targetReps ?? existing.targetReps,
         targetMuscleGroups: updates.targetMuscleGroups ?? existing.targetMuscleGroups,
         notes: 'notes' in updates ? updates.notes : existing.notes,
+        restSeconds: 'restSeconds' in updates ? updates.restSeconds : existing.restSeconds,
       }
       const errors = validateExerciseForm(merged)
       const firstError = Object.values(errors)[0]
@@ -97,6 +100,7 @@ export const useExercisesStore = create<ExercisesState>()((set, get) => ({
         targetReps: merged.targetReps,
         targetMuscleGroups: merged.targetMuscleGroups,
         ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+        ...(merged.restSeconds ? { restSeconds: merged.restSeconds } : {}),
         createdAt: existing.createdAt,
         updatedAt: Date.now(),
       }

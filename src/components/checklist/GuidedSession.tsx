@@ -77,8 +77,9 @@ export function GuidedSession({
     if (isVeryLast) {
       onComplete()
     } else if (isLastExerciseInGroup) {
-      // Group finished — a real rest follows.
-      setRestRemaining(restDuration)
+      // Group finished — a real rest follows. The exercise just completed (the group's
+      // last member) may have its own custom rest override.
+      setRestRemaining(currentExercise.restSeconds ?? restDuration)
       setPhase('resting')
     } else {
       // More members in this same group — straight on, no rest.

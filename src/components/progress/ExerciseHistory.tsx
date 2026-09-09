@@ -38,7 +38,8 @@ export function ExerciseHistory({ exerciseId }: { exerciseId: string }) {
     return calculatePersonalRecord(performances)
   }, [sessions, exerciseId])
 
-  const isPersonalRecord = (entry: { weight?: number; actualReps?: number }): boolean => {
+  const isPersonalRecord = (entry: { weight?: number; actualReps?: number; isWarmup?: boolean }): boolean => {
+    if (entry.isWarmup) return false
     const isWeightPR = entry.weight !== undefined && entry.weight === record.maxWeight
     const isRepsPR = entry.actualReps !== undefined && entry.actualReps === record.maxReps
     return isWeightPR || isRepsPR
@@ -77,6 +78,7 @@ export function ExerciseHistory({ exerciseId }: { exerciseId: string }) {
                   <span className={DIFFICULTY_BADGE[entry.difficultyLevel]}>{entry.difficultyLevel}</span>
                 )}
                 {entry.rpe != null && <span className="badge-muted">RPE {entry.rpe}</span>}
+                {entry.isWarmup && <span className="badge-muted">Warm-up</span>}
                 {isPersonalRecord(entry) && <span className="badge-accent">🏆 PR</span>}
               </div>
             </li>
