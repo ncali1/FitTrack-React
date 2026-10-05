@@ -203,7 +203,7 @@ export function AuthGate({ onSkip }: { onSkip: () => void }) {
         </button>
 
         <a
-          href="/privacy.html"
+          href={`${import.meta.env.BASE_URL}privacy.html`}
           target="_blank"
           rel="noopener"
           className="block w-full mt-3 text-center text-xs text-ink-faint hover:text-ink-muted"

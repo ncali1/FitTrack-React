@@ -32,6 +32,19 @@ npm run test:watch
 npm run lint
 ```
 
+## Installing on your phone
+
+Installing a PWA needs the app served over HTTPS. [.github/workflows/deploy.yml](./.github/workflows/deploy.yml)
+builds and publishes it to GitHub Pages on every push to `main` (one-time setup: repo
+Settings → Pages → Source: **GitHub Actions**). It is then live at
+`https://<user>.github.io/FitTrack-React/`.
+
+- **iPhone** — open the URL in Safari → Share → **Add to Home Screen**.
+- **Android** — open the URL in Chrome → tap **Install** on the in-app banner (or ⋮ → **Install app**).
+
+Hosting at a domain root instead (Vercel, Netlify, …) needs no config: the build defaults
+to `/`, and `BASE_PATH` is only set by the Pages workflow.
+
 ## Cloud Sync (optional)
 
 The app runs fully local-only with zero configuration — no `.env` file needed. To enable optional cross-device sync and sign-in via Supabase:
