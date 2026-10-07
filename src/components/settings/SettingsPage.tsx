@@ -15,8 +15,8 @@ function summarizeCounts(counts: RestoreCounts): string {
 }
 
 /**
- * Consolidated local-device preferences: weight unit, default rest timer duration,
- * workout reminders, and data export/import. Portaled to document.body (same as
+ * Consolidated local-device preferences: weight unit, default rest timer duration and
+ * its end-of-rest sound, workout reminders, and data export/import. Portaled to document.body (same as
  * ChangePasswordModal) to avoid TopBar's backdrop-blur creating a containing block that
  * would clip the overlay. Opened from a gear icon that's always visible in TopBar, since
  * these preferences are per-device and don't require signing in.
@@ -28,6 +28,8 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const setRestDuration = useSettingsStore((s) => s.setRestDuration)
   const remindersEnabled = useSettingsStore((s) => s.remindersEnabled)
   const setRemindersEnabled = useSettingsStore((s) => s.setRemindersEnabled)
+  const restSoundEnabled = useSettingsStore((s) => s.restSoundEnabled)
+  const setRestSoundEnabled = useSettingsStore((s) => s.setRestSoundEnabled)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -123,6 +125,18 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Rest-over sound */}
+            <div>
+              <span className="field-label">Rest Timer Sound</span>
+              <button
+                onClick={() => setRestSoundEnabled(!restSoundEnabled)}
+                aria-pressed={restSoundEnabled}
+                className={restSoundEnabled ? 'btn-primary w-full' : 'btn-secondary w-full'}
+              >
+                {restSoundEnabled ? 'Sound on' : 'Sound off'}
+              </button>
             </div>
 
             {/* Workout reminders */}

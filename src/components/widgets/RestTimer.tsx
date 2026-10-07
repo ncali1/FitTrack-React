@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useRestTimerStore } from '@/stores/restTimer'
+import { useKeepAwake } from '@/hooks/useKeepAwake'
 
 const RADIUS = 24
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
@@ -9,7 +10,8 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS
  * should mount this only while `useRestTimerStore((s) => s.active)` is true (see
  * App.tsx) rather than keeping it always-mounted and toggling visibility internally —
  * that way each activation is a fresh mount, so the enter animation below replays every
- * time instead of only on the very first rest period of the session.
+ * time instead of only on the very first rest period of the session. Being mounted only
+ * while resting also makes it the natural place to keep the screen awake for the rest.
  */
 export function RestTimer() {
   const remaining = useRestTimerStore((s) => s.remaining)
@@ -18,6 +20,8 @@ export function RestTimer() {
   const stop = useRestTimerStore((s) => s.stop)
 
   const [entered, setEntered] = useState(false)
+
+  useKeepAwake()
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setEntered(true))

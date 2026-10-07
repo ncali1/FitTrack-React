@@ -9,15 +9,18 @@ interface SettingsState {
   restDuration: number
   /** `null` means the user has never been asked yet (first-run state). */
   remindersEnabled: boolean | null
+  /** Whether a short beep plays when a rest timer finishes (the haptic fires regardless). */
+  restSoundEnabled: boolean
 
   toggleWeightUnit: () => void
   setRestDuration: (seconds: number) => void
   setRemindersEnabled: (enabled: boolean) => void
+  setRestSoundEnabled: (enabled: boolean) => void
 }
 
 /**
  * Small persisted user preferences: weight display unit, default rest timer duration,
- * and whether local workout reminders are enabled. Persisted to localStorage (not
+ * the rest-over sound, and whether local workout reminders are enabled. Persisted to localStorage (not
  * IndexedDB) since these are per-device display preferences, not workout data.
  */
 export const useSettingsStore = create<SettingsState>()(
@@ -26,10 +29,12 @@ export const useSettingsStore = create<SettingsState>()(
       weightUnit: 'kg',
       restDuration: DEFAULT_REST_SECONDS,
       remindersEnabled: null,
+      restSoundEnabled: true,
 
       toggleWeightUnit: () => set((state) => ({ weightUnit: state.weightUnit === 'kg' ? 'lb' : 'kg' })),
       setRestDuration: (seconds) => set({ restDuration: seconds }),
       setRemindersEnabled: (enabled) => set({ remindersEnabled: enabled }),
+      setRestSoundEnabled: (enabled) => set({ restSoundEnabled: enabled }),
     }),
     { name: 'fittrack-settings' }
   )
