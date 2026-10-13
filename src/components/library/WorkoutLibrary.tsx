@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom'
 import { Search, X, Dumbbell, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { useExercisesStore } from '@/stores/exercises'
-import { useRoutineStore, selectRoutineForDay } from '@/stores/routine'
+import { useRoutineStore } from '@/stores/routine'
 import { muscleGroupStyle } from '@/utils/muscleGroupStyles'
-import { getDayOfWeek } from '@/utils/calculations'
+import { getDayOfWeek, getPlannedExerciseIds } from '@/utils/calculations'
+import { useActiveProgram } from '@/hooks/useActiveProgram'
+import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { WORKOUT_LIBRARY, type LibraryWorkout } from '@/data/workoutLibrary'
 
 /** Broader region groupings for the filter chips — several raw muscle groups collapse
@@ -33,7 +35,9 @@ function todayString(): string {
 export function WorkoutLibrary() {
   const exercises = useExercisesStore((s) => s.exercises)
   const createExercise = useExercisesStore((s) => s.createExercise)
-  const routines = useRoutineStore((s) => s.routines)
+  const activeRoutine = useActiveProgram()
+  const todaySession = useWorkoutSessionsStore((s) => s.sessions.find((session) => session.date === todayString()))
+  const setPlannedExercises = useWorkoutSessionsStore((s) => s.setPlannedExercises)
   const assignExercise = useRoutineStore((s) => s.assignExercise)
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -42,7 +46,7 @@ export function WorkoutLibrary() {
   const [adding, setAdding] = useState(false)
 
   const today = getDayOfWeek(todayString())
-  const todayAssignedIds = selectRoutineForDay(routines, today)
+  const todayAssignedIds = getPlannedExerciseIds(todayString(), activeRoutine, todaySession)
 
   const filteredWorkouts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -72,6 +76,10 @@ export function WorkoutLibrary() {
 
       if (todayAssignedIds.includes(exerciseId)) {
         toast('Already in today’s plan')
+      } else if (todaySession?.plannedExerciseIds) {
+        // Today was swapped to a different routine, so the weekly program isn't what's showing.
+        await setPlannedExercises(todayString(), [...todaySession.plannedExerciseIds, exerciseId])
+        toast.success('Added to today’s workout')
       } else {
         await assignExercise(today, exerciseId)
         toast.success('Added to today’s workout')

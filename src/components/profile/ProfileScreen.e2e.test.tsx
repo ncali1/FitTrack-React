@@ -1,15 +1,18 @@
 /**
- * End-to-end tests for ProfileScreen: multi-routine management (create, switch, rename,
- * delete — moved here from RoutineBuilder, which now only edits the active routine's
- * day assignments), quick settings toggles, and opening the plan builder / exercise
- * manager overlays.
+ * End-to-end tests for ProfileScreen: program management (create, switch, rename,
+ * duplicate, delete), routine management (create, edit, duplicate, delete), preference
+ * toggles, the data & account section, and opening the plan builder / exercise manager
+ * overlays.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProfileScreen } from './ProfileScreen'
 import { useExercisesStore } from '@/stores/exercises'
 import { useRoutineStore } from '@/stores/routine'
+import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
+import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
+import { storageService } from '@/services/storage'
 import { useSettingsStore } from '@/stores/settings'
 import { useAuthStore } from '@/stores/auth'
 
@@ -22,17 +25,23 @@ vi.mock('@/services/storage', () => ({
     saveRoutine: vi.fn(async () => {}),
     getAllRoutines: vi.fn(async () => []),
     deleteRoutine: vi.fn(async () => {}),
+    saveWorkoutTemplate: vi.fn(async () => {}),
+    getAllWorkoutTemplates: vi.fn(async () => []),
+    deleteWorkoutTemplate: vi.fn(async () => {}),
     saveWorkoutSession: vi.fn(async () => {}),
     getWorkoutSession: vi.fn(async () => undefined),
     getWorkoutSessionByDate: vi.fn(async () => undefined),
     getAllWorkoutSessions: vi.fn(async () => []),
     deleteWorkoutSession: vi.fn(async () => {}),
+    getAllBodyWeightLogs: vi.fn(async () => []),
     clearAllData: vi.fn(async () => {}),
   },
 }))
 
 const INITIAL_EXERCISES = useExercisesStore.getState()
 const INITIAL_ROUTINE = useRoutineStore.getState()
+const INITIAL_TEMPLATES = useWorkoutTemplatesStore.getState()
+const INITIAL_SESSIONS = useWorkoutSessionsStore.getState()
 const INITIAL_SETTINGS = useSettingsStore.getState()
 const INITIAL_AUTH = useAuthStore.getState()
 
@@ -40,19 +49,21 @@ describe('E2E: ProfileScreen', () => {
   beforeEach(() => {
     useExercisesStore.setState(INITIAL_EXERCISES, true)
     useRoutineStore.setState(INITIAL_ROUTINE, true)
+    useWorkoutTemplatesStore.setState(INITIAL_TEMPLATES, true)
+    useWorkoutSessionsStore.setState(INITIAL_SESSIONS, true)
     useSettingsStore.setState(INITIAL_SETTINGS, true)
     useAuthStore.setState(INITIAL_AUTH, true)
   })
 
-  it('creates a second routine, switches to it, and keeps assignments independent', async () => {
+  it('creates a second program, switches to it, and keeps assignments independent', async () => {
     const user = userEvent.setup()
     await useRoutineStore.getState().loadRoutines()
     await useRoutineStore.getState().assignExercise('monday', 'ex-1')
 
     render(<ProfileScreen />)
 
-    await user.click(screen.getByRole('button', { name: '+ New' }))
-    await user.type(screen.getByLabelText(/routine name/i), '5x5')
+    await user.click(screen.getByRole('button', { name: '+ New program' }))
+    await user.type(screen.getByLabelText(/program name/i), '5x5')
     await user.click(screen.getByRole('button', { name: /^save$/i }))
 
     await waitFor(() => {
@@ -67,16 +78,16 @@ describe('E2E: ProfileScreen', () => {
       expect(useRoutineStore.getState().routines.find((r) => r.name === '5x5')?.isActive).toBe(true)
     })
     // The original routine (still holding the Monday assignment) is no longer active.
-    expect(useRoutineStore.getState().routines.find((r) => r.name === 'My Routine')?.isActive).toBe(false)
+    expect(useRoutineStore.getState().routines.find((r) => r.name === 'My Program')?.isActive).toBe(false)
   })
 
-  it('renames the active routine', async () => {
+  it('renames the active program', async () => {
     const user = userEvent.setup()
     await useRoutineStore.getState().loadRoutines()
     render(<ProfileScreen />)
 
-    await user.click(screen.getByRole('button', { name: /rename routine/i }))
-    const input = screen.getByLabelText(/routine name/i)
+    await user.click(screen.getByRole('button', { name: /rename program/i }))
+    const input = screen.getByLabelText(/program name/i)
     await user.clear(input)
     await user.type(input, 'Push Pull Legs')
     await user.click(screen.getByRole('button', { name: /^save$/i }))
@@ -86,11 +97,11 @@ describe('E2E: ProfileScreen', () => {
     })
   })
 
-  it('refuses to delete the last remaining routine (no delete button shown)', async () => {
+  it('refuses to delete the last remaining program (no delete button shown)', async () => {
     await useRoutineStore.getState().loadRoutines()
     render(<ProfileScreen />)
 
-    expect(screen.queryByRole('button', { name: /delete routine/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /delete program/i })).toBeNull()
   })
 
   it('toggles the weight unit', async () => {
@@ -142,7 +153,8 @@ describe('E2E: ProfileScreen', () => {
 
     await user.click(screen.getByRole('button', { name: /manage weekly plan/i }))
 
-    expect(screen.getByText('Weekly plan')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^close$/i })).toBeTruthy()
+    expect(screen.getByText('Monday')).toBeTruthy()
   })
 
   it('opens the exercise manager overlay from "Manage exercises"', async () => {
@@ -152,5 +164,179 @@ describe('E2E: ProfileScreen', () => {
     await user.click(screen.getByRole('button', { name: /manage exercises/i }))
 
     expect(screen.getByText('Your exercises')).toBeTruthy()
+  })
+
+  it('duplicates the active program', async () => {
+    const user = userEvent.setup()
+    await useRoutineStore.getState().loadRoutines()
+    render(<ProfileScreen />)
+
+    await user.click(screen.getByRole('button', { name: /duplicate program/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'My Program copy' })).toBeTruthy()
+    })
+    expect(useRoutineStore.getState().activeRoutine()?.name).toBe('My Program')
+  })
+
+  describe('routines', () => {
+    it('creates a routine, opens its editor, and adds and reorders exercises', async () => {
+      const user = userEvent.setup()
+      const { createExercise } = useExercisesStore.getState()
+      await createExercise('Bench Press', 3, 10, ['Chest'])
+      await createExercise('Overhead Press', 3, 8, ['Shoulders'])
+      render(<ProfileScreen />)
+
+      await user.click(screen.getByRole('button', { name: '+ New routine' }))
+      await user.type(screen.getByLabelText(/routine name/i), 'Push Day')
+      await user.click(screen.getByRole('button', { name: /^save$/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Edit routine')).toBeTruthy()
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Add Bench Press' }))
+      await user.click(screen.getByRole('button', { name: 'Add Overhead Press' }))
+      await waitFor(() => {
+        expect(useWorkoutTemplatesStore.getState().templates[0]?.exerciseIds).toHaveLength(2)
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Move Overhead Press up' }))
+
+      const [bench, press] = useExercisesStore.getState().exercises
+      await waitFor(() => {
+        expect(useWorkoutTemplatesStore.getState().templates[0]?.exerciseIds).toEqual([press!.id, bench!.id])
+      })
+      expect(useWorkoutTemplatesStore.getState().templates[0]?.name).toBe('Push Day')
+    })
+
+    it('lists each routine with its exercise count and the days it is scheduled on', async () => {
+      await useRoutineStore.getState().loadRoutines()
+      const template = await useWorkoutTemplatesStore.getState().createTemplate('Legs', ['a', 'b'])
+      await useRoutineStore.getState().assignTemplate('monday', template.id)
+      await useRoutineStore.getState().assignTemplate('thursday', template.id)
+      render(<ProfileScreen />)
+
+      expect(screen.getByText('2 exercises · Mon, Thu')).toBeTruthy()
+    })
+
+    it('duplicates a routine', async () => {
+      const user = userEvent.setup()
+      await useWorkoutTemplatesStore.getState().createTemplate('Legs', ['a'])
+      render(<ProfileScreen />)
+
+      await user.click(screen.getByRole('button', { name: 'Duplicate Legs' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Legs copy')).toBeTruthy()
+      })
+    })
+
+    it('deletes a routine after confirmation, and keeps it when the confirmation is declined', async () => {
+      const user = userEvent.setup()
+      await useWorkoutTemplatesStore.getState().createTemplate('Legs', ['a'])
+      render(<ProfileScreen />)
+
+      const confirmSpy = vi.fn(() => false)
+      vi.stubGlobal('confirm', confirmSpy)
+      await user.click(screen.getByRole('button', { name: 'Delete Legs' }))
+      expect(useWorkoutTemplatesStore.getState().templates).toHaveLength(1)
+
+      confirmSpy.mockReturnValue(true)
+      await user.click(screen.getByRole('button', { name: 'Delete Legs' }))
+      await waitFor(() => {
+        expect(useWorkoutTemplatesStore.getState().templates).toHaveLength(0)
+      })
+      vi.unstubAllGlobals()
+    })
+  })
+
+  describe('workout preferences', () => {
+    it('sets a custom rest time, and rejects one outside the allowed range', async () => {
+      const user = userEvent.setup()
+      render(<ProfileScreen />)
+
+      await user.click(screen.getByRole('button', { name: /custom rest time/i }))
+      const input = screen.getByLabelText(/rest time in seconds/i)
+      await user.clear(input)
+      await user.type(input, '2')
+      await user.click(screen.getByRole('button', { name: /^set$/i }))
+      expect(useSettingsStore.getState().restDuration).toBe(90)
+
+      await user.clear(input)
+      await user.type(input, '75')
+      await user.click(screen.getByRole('button', { name: /^set$/i }))
+      expect(useSettingsStore.getState().restDuration).toBe(75)
+      expect(screen.getByRole('button', { name: /custom rest time/i })).toHaveTextContent('75s')
+    })
+
+    it('toggles rest timer sound, vibration, and keep-screen-awake', async () => {
+      const user = userEvent.setup()
+      render(<ProfileScreen />)
+
+      await user.click(screen.getByRole('switch', { name: 'Rest timer sound' }))
+      await user.click(screen.getByRole('switch', { name: 'Rest timer vibration' }))
+      await user.click(screen.getByRole('switch', { name: 'Keep screen awake' }))
+
+      expect(useSettingsStore.getState()).toMatchObject({
+        restTimerSound: true,
+        restTimerVibrate: false,
+        keepScreenAwake: false,
+      })
+    })
+  })
+
+  describe('data & account', () => {
+    it('shows lifetime stats from logged sessions', () => {
+      useWorkoutSessionsStore.setState({
+        sessions: [
+          { id: 's1', date: '2025-01-01', exercises: [{ exerciseId: 'a', completed: true, weight: 50, actualReps: 8, timestamp: 1 }], createdAt: 1, updatedAt: 1 },
+          { id: 's2', date: '2025-01-03', exercises: [{ exerciseId: 'a', completed: true, weight: 60, actualReps: 8, timestamp: 2 }], createdAt: 2, updatedAt: 2 },
+          { id: 's3', date: '2025-01-05', exercises: [{ exerciseId: 'a', completed: false, timestamp: 3 }], createdAt: 3, updatedAt: 3 },
+        ],
+      })
+      render(<ProfileScreen />)
+
+      expect(within(screen.getByText('Workouts').parentElement!).getByText('2')).toBeTruthy()
+      expect(within(screen.getByText('Records set').parentElement!).getByText('1')).toBeTruthy()
+    })
+
+    it('offers backup export/import and hides change password when signed out', () => {
+      render(<ProfileScreen />)
+
+      expect(screen.getByRole('button', { name: /export/i })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /import/i })).toBeTruthy()
+      expect(screen.getByRole('link', { name: /privacy policy/i })).toBeTruthy()
+      expect(screen.queryByRole('button', { name: /change password/i })).toBeNull()
+    })
+
+    it('shows change password when signed in', () => {
+      useAuthStore.setState({ cloudEnabled: true, user: { email: 'test@example.com' } as never })
+      render(<ProfileScreen />)
+
+      expect(screen.getByRole('button', { name: /change password/i })).toBeTruthy()
+    })
+
+    it('deletes all data only after the second, explicit confirmation', async () => {
+      const user = userEvent.setup()
+      await useWorkoutTemplatesStore.getState().createTemplate('Legs', ['a'])
+      render(<ProfileScreen />)
+
+      await user.click(screen.getByRole('button', { name: /delete all my data/i }))
+      expect(storageService.clearAllData).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: /^cancel$/i }))
+      expect(storageService.clearAllData).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: /delete all my data/i }))
+      await user.click(screen.getByRole('button', { name: /yes, delete everything/i }))
+
+      await waitFor(() => {
+        expect(storageService.clearAllData).toHaveBeenCalledTimes(1)
+      })
+      await waitFor(() => {
+        expect(useWorkoutTemplatesStore.getState().templates).toEqual([])
+      })
+    })
   })
 })

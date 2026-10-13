@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { calculatePersonalRecord, detectNewRecords } from './personalRecords'
-import { createMockExercisePerformance } from '@/tests/factories'
+import { calculatePersonalRecord, detectNewRecords, countPersonalRecords } from './personalRecords'
+import { createMockExercisePerformance, createMockWorkoutSession } from '@/tests/factories'
 
 describe('calculatePersonalRecord', () => {
   it('returns all-null when there is no history', () => {
@@ -75,5 +75,43 @@ describe('detectNewRecords', () => {
       isWeightPR: false,
       isRepsPR: false,
     })
+  })
+})
+
+describe('countPersonalRecords', () => {
+  const log = (date: string, weight: number, actualReps: number, extra = {}) =>
+    createMockWorkoutSession({
+      date,
+      exercises: [createMockExercisePerformance({ exerciseId: 'bench', weight, actualReps, ...extra })],
+    })
+
+  it('returns 0 with no sessions, and does not count an exercise\'s first log', () => {
+    expect(countPersonalRecords([])).toBe(0)
+    expect(countPersonalRecords([log('2025-01-01', 50, 8)])).toBe(0)
+  })
+
+  it('counts each later session that beats the best weight or the best reps so far', () => {
+    const sessions = [
+      log('2025-01-01', 50, 8),
+      log('2025-01-03', 55, 8), // weight record
+      log('2025-01-05', 55, 8), // matches, not a record
+      log('2025-01-07', 50, 10), // reps record
+      log('2025-01-09', 45, 6), // neither
+    ]
+    expect(countPersonalRecords(sessions)).toBe(2)
+  })
+
+  it('walks sessions in date order regardless of the order they are stored in', () => {
+    const sessions = [log('2025-01-05', 50, 8), log('2025-01-01', 60, 8)]
+    expect(countPersonalRecords(sessions)).toBe(0)
+  })
+
+  it('ignores warm-ups and incomplete entries', () => {
+    const sessions = [
+      log('2025-01-01', 50, 8),
+      log('2025-01-03', 100, 20, { isWarmup: true }),
+      log('2025-01-05', 100, 20, { completed: false }),
+    ]
+    expect(countPersonalRecords(sessions)).toBe(0)
   })
 })

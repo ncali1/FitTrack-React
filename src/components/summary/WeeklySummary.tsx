@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useRoutineStore, selectActiveRoutine } from '@/stores/routine'
+import { useActiveProgram } from '@/hooks/useActiveProgram'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import type { WeeklySummary as WeeklySummaryData } from '@/types'
 import { WeekNavigator } from './WeekNavigator'
@@ -44,8 +44,7 @@ const EMPTY_SUMMARY = (weekStart: string, weekEnd: string): WeeklySummaryData =>
  * previous weeks (navigation to future weeks is disabled).
  */
 export function WeeklySummary() {
-  const routines = useRoutineStore((s) => s.routines)
-  const activeRoutine = selectActiveRoutine(routines)
+  const activeRoutine = useActiveProgram()
 
   const [weekOffset, setWeekOffset] = useState(0)
 

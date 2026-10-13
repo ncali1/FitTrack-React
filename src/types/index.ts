@@ -25,14 +25,40 @@ export interface RoutineAssignment {
   [day: string]: string[]
 }
 
-/** A saved weekly routine/program document stored in IndexedDB. */
+/**
+ * A named, reusable list of exercises (e.g. "Push Day", "Legs") — what the UI calls a
+ * **Routine**. Assigned to days of a weekly program by reference, so editing one updates
+ * every day that uses it.
+ *
+ * Named `WorkoutTemplate` in code because `Routine` (below) was already taken by the
+ * weekly plan, whose name is baked into persisted table names.
+ */
+export interface WorkoutTemplate {
+  id: string
+  name: string
+  /** Ordered exercise IDs. */
+  exerciseIds: string[]
+  /** Unix milliseconds */
+  createdAt: number
+  /** Unix milliseconds */
+  updatedAt: number
+}
+
+/**
+ * A saved weekly plan stored in IndexedDB — what the UI calls a **Program**. (The type,
+ * store, and tables keep the older "routine" name; see {@link WorkoutTemplate}.)
+ */
 export interface Routine {
   id: string
   /** User-facing name, e.g. "Push/Pull/Legs" or "5x5". */
   name: string
   /** Whether this is the currently active routine driving the daily checklist. */
   isActive: boolean
+  /** Exercises assigned to a day individually, on top of any templates in `weeklyTemplates`. */
   weeklyAssignments: RoutineAssignment
+  /** Maps lowercase day names to {@link WorkoutTemplate} IDs assigned to that day, in order.
+   *  Absent on plans saved before templates existed. */
+  weeklyTemplates?: RoutineAssignment
   /** Unix milliseconds */
   createdAt: number
   /** Unix milliseconds */
@@ -69,6 +95,11 @@ export interface WorkoutSession {
   /** Wall-clock length of a completed guided session, in seconds — set once when a
    *  guided workout finishes; absent for days logged entirely via the ad-hoc checklist. */
   durationSeconds?: number
+  /** When set, the exact exercises planned for this date, replacing whatever the weekly
+   *  program schedules for that weekday — set by doing a different routine on the day. A
+   *  snapshot of IDs rather than a template reference, so later edits to the template
+   *  don't rewrite history. */
+  plannedExerciseIds?: string[]
   /** Unix milliseconds */
   createdAt: number
   /** Unix milliseconds */

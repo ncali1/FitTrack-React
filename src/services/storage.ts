@@ -1,5 +1,5 @@
 import { db } from './database'
-import type { Exercise, Routine, WorkoutSession, BodyWeightLog } from '@/types'
+import type { Exercise, Routine, WorkoutTemplate, WorkoutSession, BodyWeightLog } from '@/types'
 
 const MAX_RETRIES = 3
 const RETRY_DELAYS = [100, 500, 1000]
@@ -101,6 +101,20 @@ export const storageService = {
     return retryOperation(() => db.routine.delete(id), 'Delete routine').then(() => {})
   },
 
+  // ── Workout template operations ───────────────────────────────────────────
+
+  async saveWorkoutTemplate(template: WorkoutTemplate): Promise<void> {
+    return retryOperation(() => db.workoutTemplates.put(toPlain(template)), 'Save workout template').then(() => {})
+  },
+
+  async getAllWorkoutTemplates(): Promise<WorkoutTemplate[]> {
+    return retryOperation(() => db.workoutTemplates.toArray(), 'Get all workout templates')
+  },
+
+  async deleteWorkoutTemplate(id: string): Promise<void> {
+    return retryOperation(() => db.workoutTemplates.delete(id), 'Delete workout template').then(() => {})
+  },
+
   // ── Workout session operations ────────────────────────────────────────────
 
   async saveWorkoutSession(session: WorkoutSession): Promise<void> {
@@ -151,13 +165,14 @@ export const storageService = {
   // ── Bulk operations ───────────────────────────────────────────────────────
 
   /**
-   * Deletes all exercises, routines, workout sessions, and body weight logs from
+   * Deletes all exercises, routines, templates, workout sessions, and body weight logs from
    * IndexedDB. Intended for use in tests or when the user requests a full data reset.
    */
   async clearAllData(): Promise<void> {
     return retryOperation(async () => {
       await db.exercises.clear()
       await db.routine.clear()
+      await db.workoutTemplates.clear()
       await db.workoutSessions.clear()
       await db.bodyWeightLogs.clear()
     }, 'Clear all data').then(() => {})

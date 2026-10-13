@@ -4,7 +4,7 @@
  * new record. Weight comparisons operate on canonical kg values — callers only need to
  * convert for display, never for the comparison itself.
  */
-import type { ExercisePerformance } from '@/types'
+import type { ExercisePerformance, WorkoutSession } from '@/types'
 
 export interface PersonalRecord {
   /** Heaviest weight (kg) ever logged for this exercise, or null if none logged. */
@@ -70,4 +70,29 @@ export function detectNewRecords(
     (prior.maxReps === null || candidate.actualReps > prior.maxReps)
 
   return { isWeightPR, isRepsPR }
+}
+
+/**
+ * Counts how many times a personal record has been set across all sessions: each logged
+ * performance that beat the exercise's best weight or best reps at that point. An
+ * exercise's first logged performance sets the baseline and isn't counted.
+ */
+export function countPersonalRecords(sessions: WorkoutSession[]): number {
+  const priorByExercise = new Map<string, ExercisePerformance[]>()
+  let count = 0
+
+  for (const session of [...sessions].sort((a, b) => a.date.localeCompare(b.date))) {
+    for (const performance of session.exercises) {
+      if (!performance.completed || performance.isWarmup) continue
+
+      const prior = priorByExercise.get(performance.exerciseId) ?? []
+      if (prior.length > 0) {
+        const { isWeightPR, isRepsPR } = detectNewRecords(prior, performance)
+        if (isWeightPR || isRepsPR) count += 1
+      }
+      priorByExercise.set(performance.exerciseId, [...prior, performance])
+    }
+  }
+
+  return count
 }

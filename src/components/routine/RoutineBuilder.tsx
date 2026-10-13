@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { useRoutineStore, selectActiveRoutine } from '@/stores/routine'
 import { useExercisesStore } from '@/stores/exercises'
+import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { DayPlanCard } from './DayPlanCard'
 
 const DAYS = [
@@ -17,16 +18,20 @@ const DAYS = [
 
 /**
  * Full-screen "Weekly plan" editor: one expandable card per day of the week, each
- * showing its currently assigned exercises as removable chips and, when expanded, a
- * toggle-grid of the whole exercise library to add more. Always edits the active
- * routine — switching *which* routine is active happens in Profile, one level up.
+ * showing its currently assigned routines and individual exercises as removable chips
+ * and, when expanded, toggle-grids of every routine and of the whole exercise library to
+ * add more. Always edits the active program — switching *which* program is active
+ * happens in Profile, one level up.
  */
 export function RoutineBuilder({ onClose }: { onClose: () => void }) {
   const routines = useRoutineStore((s) => s.routines)
   const activeRoutine = selectActiveRoutine(routines)
   const assignExercise = useRoutineStore((s) => s.assignExercise)
   const removeExercise = useRoutineStore((s) => s.removeExercise)
+  const assignTemplate = useRoutineStore((s) => s.assignTemplate)
+  const removeTemplate = useRoutineStore((s) => s.removeTemplate)
   const exercises = useExercisesStore((s) => s.exercises)
+  const templates = useWorkoutTemplatesStore((s) => s.templates)
 
   const [expandedDay, setExpandedDay] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -46,6 +51,15 @@ export function RoutineBuilder({ onClose }: { onClose: () => void }) {
     } catch (err) {
       console.error('Failed to remove exercise:', err)
       setError('Failed to remove exercise. Please try again.')
+    }
+  }
+
+  const handleToggleTemplate = async (day: string, templateId: string, assign: boolean) => {
+    try {
+      await (assign ? assignTemplate(day, templateId) : removeTemplate(day, templateId))
+    } catch (err) {
+      console.error('Failed to update routine assignment:', err)
+      setError('Failed to update the day. Please try again.')
     }
   }
 
@@ -81,15 +95,22 @@ export function RoutineBuilder({ onClose }: { onClose: () => void }) {
           const assignedExercises = assignedIds
             .map((id) => exercises.find((e) => e.id === id))
             .filter((ex): ex is NonNullable<typeof ex> => ex !== undefined)
+          const assignedTemplates = (activeRoutine?.weeklyTemplates?.[day.key] ?? [])
+            .map((id) => templates.find((t) => t.id === id))
+            .filter((t): t is NonNullable<typeof t> => t !== undefined)
 
           return (
             <DayPlanCard
               key={day.key}
               label={day.label}
+              assignedTemplates={assignedTemplates}
               assignedExercises={assignedExercises}
+              allTemplates={templates}
               allExercises={exercises}
               expanded={expandedDay === day.key}
               onToggleExpand={() => setExpandedDay((d) => (d === day.key ? null : day.key))}
+              onAddTemplate={(templateId) => handleToggleTemplate(day.key, templateId, true)}
+              onRemoveTemplate={(templateId) => handleToggleTemplate(day.key, templateId, false)}
               onAdd={(exerciseId) => handleAdd(day.key, exerciseId)}
               onRemove={(exerciseId) => handleRemove(day.key, exerciseId)}
             />

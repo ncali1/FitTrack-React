@@ -11,6 +11,9 @@ const base = process.env.BASE_PATH || '/'
 // https://vite.dev/config/
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? ''),
+  },
   plugins: [
     react(),
     tailwindcss(),

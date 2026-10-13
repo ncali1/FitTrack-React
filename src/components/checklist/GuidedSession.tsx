@@ -3,6 +3,9 @@ import type { Exercise, ExercisePerformance, WorkoutSession } from '@/types'
 import { getExerciseHistory } from '@/utils/calculations'
 import { suggestNextPerformance } from '@/utils/progressiveOverload'
 import { PerformanceForm } from './PerformanceForm'
+import { useSettingsStore } from '@/stores/settings'
+import { useWakeLock } from '@/hooks/useWakeLock'
+import { primeRestAlert, signalRestOver } from '@/utils/restAlert'
 
 type Phase = 'logging' | 'resting'
 
@@ -40,6 +43,8 @@ export function GuidedSession({
   const [phase, setPhase] = useState<Phase>('logging')
   const [restRemaining, setRestRemaining] = useState(restDuration)
 
+  useWakeLock(useSettingsStore((s) => s.keepScreenAwake))
+
   const totalExercises = groups.reduce((sum, g) => sum + g.length, 0)
   const currentGroup = groups[groupIndex] ?? []
   const currentExercise = currentGroup[exerciseIndexInGroup]
@@ -61,6 +66,7 @@ export function GuidedSession({
     if (phase !== 'resting') return
     const timeout = setTimeout(() => {
       if (restRemaining <= 1) {
+        signalRestOver()
         setPhase('logging')
         advance()
       } else {
@@ -72,6 +78,7 @@ export function GuidedSession({
 
   const handleSubmit = async (performance: Omit<ExercisePerformance, 'exerciseId' | 'timestamp'>) => {
     if (!currentExercise) return
+    primeRestAlert()
     await onLogExercise(currentExercise, performance)
 
     if (isVeryLast) {

@@ -1,12 +1,19 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { useRoutineStore, selectActiveRoutine } from '@/stores/routine'
+import { useRoutineStore } from '@/stores/routine'
+import { useActiveProgram } from '@/hooks/useActiveProgram'
 import { useExercisesStore } from '@/stores/exercises'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { useBodyWeightStore } from '@/stores/bodyWeight'
 import { useSettingsStore } from '@/stores/settings'
 import { useUIStore } from '@/stores/ui'
-import { getDayOfWeek, getWeekStart, calculateWeeklySummary, calculateStreak } from '@/utils/calculations'
+import {
+  getDayOfWeek,
+  getWeekStart,
+  getPlannedExerciseIds,
+  calculateWeeklySummary,
+  calculateStreak,
+} from '@/utils/calculations'
 import { formatWeight } from '@/utils/units'
 
 function todayString(): string {
@@ -21,8 +28,7 @@ function todayString(): string {
  * copy of any of this data.
  */
 export function HomeDashboard() {
-  const routines = useRoutineStore((s) => s.routines)
-  const activeRoutine = selectActiveRoutine(routines)
+  const activeRoutine = useActiveProgram()
   const exercises = useExercisesStore((s) => s.exercises)
   const sessions = useWorkoutSessionsStore((s) => s.sessions)
   const assignExercise = useRoutineStore((s) => s.assignExercise)
@@ -33,7 +39,11 @@ export function HomeDashboard() {
   const [repeating, setRepeating] = useState(false)
 
   const todayStr = todayString()
-  const todayExerciseIds = activeRoutine?.weeklyAssignments[getDayOfWeek(todayStr)] ?? []
+  const todayExerciseIds = getPlannedExerciseIds(
+    todayStr,
+    activeRoutine,
+    sessions.find((s) => s.date === todayStr)
+  )
   const todayExercises = todayExerciseIds
     .map((id) => exercises.find((e) => e.id === id))
     .filter((e): e is NonNullable<typeof e> => e !== undefined)

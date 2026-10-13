@@ -1,18 +1,8 @@
-import { useRef } from 'react'
-import { X, Download, Upload } from 'lucide-react'
-import { toast } from 'sonner'
+import { X } from 'lucide-react'
 import { useSettingsStore } from '@/stores/settings'
-import { useExercisesStore } from '@/stores/exercises'
-import { useRoutineStore } from '@/stores/routine'
-import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
-import { useBodyWeightStore } from '@/stores/bodyWeight'
-import { downloadBackup, readBackupFile, restoreBackup, InvalidBackupError, type RestoreCounts } from '@/utils/exportData'
+import { BackupControls } from './BackupControls'
 
 const REST_PRESETS = [30, 60, 90, 120, 180]
-
-function summarizeCounts(counts: RestoreCounts): string {
-  return `${counts.exercises} exercises, ${counts.routines} routines, ${counts.workoutSessions} sessions, ${counts.bodyWeightLogs} body weight logs`
-}
 
 /**
  * Consolidated local-device preferences: weight unit, default rest timer duration,
@@ -28,47 +18,6 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const setRestDuration = useSettingsStore((s) => s.setRestDuration)
   const remindersEnabled = useSettingsStore((s) => s.remindersEnabled)
   const setRemindersEnabled = useSettingsStore((s) => s.setRemindersEnabled)
-
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const reloadAllStores = async () => {
-    await Promise.all([
-      useExercisesStore.getState().loadExercises(),
-      useRoutineStore.getState().loadRoutines(),
-      useWorkoutSessionsStore.getState().loadSessions(),
-      useBodyWeightStore.getState().loadLogs(),
-    ])
-  }
-
-  const handleExport = async () => {
-    try {
-      await downloadBackup()
-      toast.success('Backup downloaded')
-    } catch (err) {
-      console.error('Failed to export backup:', err)
-      toast.error('Failed to export backup')
-    }
-  }
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-
-    try {
-      const backup = await readBackupFile(file)
-      const counts = await restoreBackup(backup)
-      await reloadAllStores()
-      toast.success(`Backup restored: ${summarizeCounts(counts)}`)
-    } catch (err) {
-      console.error('Failed to import backup:', err)
-      toast.error(err instanceof InvalidBackupError ? err.message : 'Failed to import backup')
-    }
-  }
 
   return (
     <div
@@ -140,24 +89,7 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
             {/* Data export / import */}
             <div>
               <span className="field-label">Backup</span>
-              <div className="flex gap-2">
-                <button onClick={handleExport} className="btn-secondary flex-1">
-                  <Download size={16} strokeWidth={2} />
-                  Export
-                </button>
-                <button onClick={handleImportClick} className="btn-secondary flex-1">
-                  <Upload size={16} strokeWidth={2} />
-                  Import
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="application/json"
-                  aria-label="Import backup file"
-                  className="hidden"
-                  onChange={handleFileSelected}
-                />
-              </div>
+              <BackupControls />
             </div>
           </div>
         </div>

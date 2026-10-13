@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useRoutineStore } from './routine'
+import { useRoutineStore, selectRoutineForDay, resolveRoutine } from './routine'
 import { useWorkoutSessionsStore } from './workoutSessions'
 
 vi.mock('@/services/storage', () => ({
@@ -11,6 +11,9 @@ vi.mock('@/services/storage', () => ({
     saveRoutine: vi.fn(async () => {}),
     getAllRoutines: vi.fn(async () => []),
     deleteRoutine: vi.fn(async () => {}),
+    saveWorkoutTemplate: vi.fn(async () => {}),
+    getAllWorkoutTemplates: vi.fn(async () => []),
+    deleteWorkoutTemplate: vi.fn(async () => {}),
     saveWorkoutSession: vi.fn(async () => {}),
     getWorkoutSession: vi.fn(async () => undefined),
     getWorkoutSessionByDate: vi.fn(async () => undefined),
@@ -93,12 +96,12 @@ describe('useRoutineStore', () => {
   })
 
   describe('Lazy routine creation', () => {
-    it('lazily creates the first routine as "My Routine", marked active', async () => {
+    it('lazily creates the first routine as "My Program", marked active', async () => {
       await useRoutineStore.getState().assignExercise('monday', 'ex1')
 
       const state = useRoutineStore.getState()
       expect(state.routines).toHaveLength(1)
-      expect(state.activeRoutine()?.name).toBe('My Routine')
+      expect(state.activeRoutine()?.name).toBe('My Program')
       expect(state.activeRoutine()?.isActive).toBe(true)
     })
 
@@ -197,5 +200,105 @@ describe('useRoutineStore', () => {
       expect(state.routines).toHaveLength(1)
       expect(state.activeRoutine()?.id).toBe(activeId)
     })
+  })
+})
+
+describe('workout templates on the weekly plan', () => {
+  const template = (id: string, exerciseIds: string[]) => ({
+    id,
+    name: id,
+    exerciseIds,
+    createdAt: 1,
+    updatedAt: 1,
+  })
+
+  beforeEach(async () => {
+    useRoutineStore.setState(INITIAL_ROUTINE_STATE, true)
+    useWorkoutSessionsStore.setState(INITIAL_SESSIONS_STATE, true)
+    await useRoutineStore.getState().loadRoutines()
+  })
+
+  it('expands an assigned template into the day, ahead of individually assigned exercises', async () => {
+    const { assignTemplate, assignExercise } = useRoutineStore.getState()
+    await assignExercise('monday', 'solo')
+    await assignTemplate('monday', 'push')
+
+    const templates = [template('push', ['bench', 'press'])]
+    expect(selectRoutineForDay(useRoutineStore.getState().routines, 'monday', templates)).toEqual([
+      'bench',
+      'press',
+      'solo',
+    ])
+  })
+
+  it('lists an exercise once when a template and the day both include it', async () => {
+    const { assignTemplate, assignExercise } = useRoutineStore.getState()
+    await assignExercise('monday', 'bench')
+    await assignTemplate('monday', 'push')
+    await assignTemplate('monday', 'chest')
+
+    const templates = [template('push', ['bench', 'press']), template('chest', ['bench', 'fly'])]
+    expect(selectRoutineForDay(useRoutineStore.getState().routines, 'monday', templates)).toEqual([
+      'bench',
+      'press',
+      'fly',
+    ])
+  })
+
+  it('assigns the same template to several days, and removes it from one without touching the others', async () => {
+    const { assignTemplate, removeTemplate } = useRoutineStore.getState()
+    await assignTemplate('monday', 'push')
+    await assignTemplate('thursday', 'push')
+    await removeTemplate('monday', 'push')
+
+    const active = useRoutineStore.getState().activeRoutine()
+    expect(active?.weeklyTemplates?.monday).toEqual([])
+    expect(active?.weeklyTemplates?.thursday).toEqual(['push'])
+  })
+
+  it('ignores a template that no longer exists', async () => {
+    await useRoutineStore.getState().assignTemplate('monday', 'gone')
+    expect(selectRoutineForDay(useRoutineStore.getState().routines, 'monday', [])).toEqual([])
+  })
+
+  it('returns the same resolved object until the routine or the templates change', async () => {
+    await useRoutineStore.getState().assignTemplate('monday', 'push')
+    const routine = useRoutineStore.getState().activeRoutine()!
+    const templates = [template('push', ['bench'])]
+
+    expect(resolveRoutine(routine, templates)).toBe(resolveRoutine(routine, templates))
+    expect(resolveRoutine(routine, [...templates])).not.toBe(resolveRoutine(routine, templates))
+  })
+
+  it('removeTemplateFromAll unassigns a template from every routine', async () => {
+    const store = useRoutineStore.getState()
+    await store.assignTemplate('monday', 'push')
+    const second = await store.createRoutine('Second')
+    await store.setActiveRoutine(second.id)
+    await useRoutineStore.getState().assignTemplate('friday', 'push')
+
+    await useRoutineStore.getState().removeTemplateFromAll('push')
+
+    for (const routine of useRoutineStore.getState().routines) {
+      expect(Object.values(routine.weeklyTemplates ?? {}).flat()).not.toContain('push')
+    }
+  })
+
+  it('duplicateRoutine copies assignments into an independent, inactive routine', async () => {
+    const store = useRoutineStore.getState()
+    await store.assignExercise('monday', 'ex1')
+    await store.assignTemplate('tuesday', 'push')
+    const original = useRoutineStore.getState().activeRoutine()!
+
+    const copy = await useRoutineStore.getState().duplicateRoutine(original.id)
+
+    expect(copy).toMatchObject({ name: `${original.name} copy`, isActive: false })
+    expect(copy?.id).not.toBe(original.id)
+    expect(copy?.weeklyAssignments.monday).toEqual(['ex1'])
+    expect(copy?.weeklyTemplates?.tuesday).toEqual(['push'])
+
+    await useRoutineStore.getState().assignExercise('monday', 'ex2')
+    const storedCopy = useRoutineStore.getState().routines.find((r) => r.id === copy!.id)
+    expect(storedCopy?.weeklyAssignments.monday).toEqual(['ex1'])
   })
 })

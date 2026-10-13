@@ -15,6 +15,7 @@ import {
   mergeRoutineWithSession,
   calculateStreak,
   calculateSessionVolume,
+  getPlannedExerciseIds,
 } from './calculations'
 import { createMockRoutine, createMockWorkoutSession, createMockExercise, createMockExercisePerformance } from '@/tests/factories'
 import type { Routine, WorkoutSession } from '@/types'
@@ -337,5 +338,71 @@ describe('calculateSessionVolume', () => {
       createMockExercisePerformance({ completed: true, weight: 60, actualSets: 3, actualReps: 10 }),
     ]
     expect(calculateSessionVolume(performances)).toBe(60 * 3 * 10)
+  })
+})
+
+describe('a date overridden with a different routine (plannedExerciseIds)', () => {
+  const TUESDAY = '2025-01-07'
+  const WEDNESDAY = '2025-01-08'
+
+  it('getPlannedExerciseIds prefers the session override, and falls back to the weekday otherwise', () => {
+    const routine = routineWith({ monday: ['legs1'] })
+    const overridden = createMockWorkoutSession({ date: MONDAY, plannedExerciseIds: ['push1', 'push2'] })
+
+    expect(getPlannedExerciseIds(MONDAY, routine, overridden)).toEqual(['push1', 'push2'])
+    expect(getPlannedExerciseIds(MONDAY, routine, sessionWith(MONDAY, []))).toEqual(['legs1'])
+    expect(getPlannedExerciseIds(MONDAY, routine, undefined)).toEqual(['legs1'])
+    expect(getPlannedExerciseIds(MONDAY, null, undefined)).toEqual([])
+  })
+
+  it('an empty override turns a scheduled day into a rest day', () => {
+    const routine = routineWith({ monday: ['legs1'] })
+    const overridden = createMockWorkoutSession({ date: MONDAY, plannedExerciseIds: [] })
+
+    expect(getPlannedExerciseIds(MONDAY, routine, overridden)).toEqual([])
+  })
+
+  it('the weekly summary counts the overridden day by its override, not the weekday schedule', () => {
+    const routine = routineWith({ monday: ['legs1'], tuesday: ['pull1'] })
+    const sessions = [
+      createMockWorkoutSession({
+        date: MONDAY,
+        plannedExerciseIds: ['push1', 'push2', 'push3'],
+        exercises: [{ exerciseId: 'push1', completed: true, timestamp: 1 }],
+      }),
+    ]
+
+    const summary = calculateWeeklySummary(MONDAY, routine, sessions)
+
+    expect(summary.dailyBreakdown.monday).toEqual({ assigned: 3, completed: 1 })
+    expect(summary.totalAssignedWorkouts).toBe(4)
+  })
+
+  it('the streak counts a day whose override was completed, even though the scheduled exercises were not', () => {
+    const routine = routineWith({ monday: ['legs1'], tuesday: ['pull1'] })
+    const sessions = [
+      createMockWorkoutSession({
+        date: MONDAY,
+        plannedExerciseIds: ['push1'],
+        exercises: [{ exerciseId: 'push1', completed: true, timestamp: 1 }],
+      }),
+      sessionWith(TUESDAY, [{ exerciseId: 'pull1', completed: true, timestamp: 2 }]),
+    ]
+
+    expect(calculateStreak(routine, sessions, WEDNESDAY)).toBe(2)
+  })
+
+  it('a routine done on a rest day counts toward the streak', () => {
+    const routine = routineWith({ tuesday: ['pull1'] })
+    const sessions = [
+      createMockWorkoutSession({
+        date: MONDAY,
+        plannedExerciseIds: ['push1'],
+        exercises: [{ exerciseId: 'push1', completed: true, timestamp: 1 }],
+      }),
+      sessionWith(TUESDAY, [{ exerciseId: 'pull1', completed: true, timestamp: 2 }]),
+    ]
+
+    expect(calculateStreak(routine, sessions, WEDNESDAY)).toBe(2)
   })
 })

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useUIStore } from '@/stores/ui'
 import { useExercisesStore } from '@/stores/exercises'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
-import { useRoutineStore, selectActiveRoutine } from '@/stores/routine'
+import { useActiveProgram } from '@/hooks/useActiveProgram'
 import { useBodyWeightStore } from '@/stores/bodyWeight'
 import { useSettingsStore } from '@/stores/settings'
 import { calculatePersonalRecord } from '@/utils/personalRecords'
@@ -42,8 +42,7 @@ export function ProgressGraphs() {
   const timeRange = useUIStore((s) => s.timeRange)
 
   const exercises = useExercisesStore((s) => s.exercises)
-  const routines = useRoutineStore((s) => s.routines)
-  const activeRoutine = selectActiveRoutine(routines)
+  const activeRoutine = useActiveProgram()
   const weightUnit = useSettingsStore((s) => s.weightUnit)
   const sessions = useWorkoutSessionsStore((s) => s.sessions)
   const bodyWeightLogs = useBodyWeightStore((s) => s.logs)

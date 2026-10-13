@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { primeRestAlert, signalRestOver } from '@/utils/restAlert'
 
 interface RestTimerState {
   active: boolean
@@ -34,6 +35,7 @@ export const useRestTimerStore = create<RestTimerState>()((set, get) => ({
 
   start: (seconds) => {
     clearTick()
+    primeRestAlert()
     set({ duration: seconds, remaining: seconds, active: true })
 
     intervalId = setInterval(() => {
@@ -41,9 +43,7 @@ export const useRestTimerStore = create<RestTimerState>()((set, get) => ({
       if (remaining <= 0) {
         clearTick()
         set({ active: false, remaining: 0 })
-        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-          navigator.vibrate([200, 100, 200])
-        }
+        signalRestOver()
       } else {
         set({ remaining })
       }
