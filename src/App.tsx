@@ -6,7 +6,7 @@ import { useRestTimerStore } from '@/stores/restTimer'
 import { flushQueue, pullAndHydrate } from '@/services/cloudSync'
 import { Layout } from '@/components/layout/Layout'
 import { HomeDashboard } from '@/components/home/HomeDashboard'
-import { WorkoutLibrary } from '@/components/library/WorkoutLibrary'
+import { LibraryScreen } from '@/components/library/LibraryScreen'
 import { ProfileScreen } from '@/components/profile/ProfileScreen'
 import { DailyChecklist } from '@/components/checklist/DailyChecklist'
 import { AuthGate } from '@/components/auth/AuthGate'
@@ -132,7 +132,7 @@ function App() {
           ) : activeTab === 'train' ? (
             <DailyChecklist />
           ) : activeTab === 'library' ? (
-            <WorkoutLibrary />
+            <LibraryScreen />
           ) : activeTab === 'progress' ? (
             <Suspense fallback={<div className="card-pad text-center py-14 text-ink-faint">Loading charts…</div>}>
               <ProgressGraphs />
