@@ -13,6 +13,7 @@ import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { ensureExerciseFromLibrary, findExerciseForLibraryWorkout } from '@/utils/libraryExercise'
 import { InlineNameForm } from '@/components/profile/InlineNameForm'
 import type { WorkoutTemplate } from '@/types'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 /** Broader region groupings for the filter chips — several raw muscle groups collapse
  *  into one chip (e.g. Biceps/Triceps/Forearms -> Arms) to keep the filter row short. */
@@ -53,6 +54,7 @@ export function WorkoutLibrary() {
   /** Whether the detail sheet is showing its routine list instead of its main actions. */
   const [pickingRoutine, setPickingRoutine] = useState(false)
   const [namingRoutine, setNamingRoutine] = useState(false)
+  useBodyScrollLock(selectedDetail !== null)
 
   const closeDetail = () => {
     setSelectedDetail(null)

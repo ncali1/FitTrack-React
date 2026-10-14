@@ -204,6 +204,12 @@ h3 { @apply text-base font-semibold; }
   @apply min-h-screen;
 }
 
+/* Set by useBodyScrollLock while an overlay is open, so only the overlay scrolls. */
+html.scroll-locked,
+html.scroll-locked body {
+  overflow: hidden;
+}
+
 /* Safe-area padding for installed PWA (notches / home indicators) */
 .pwa-safe-top { padding-top: env(safe-area-inset-top); }
 .pwa-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
@@ -310,10 +316,10 @@ h3 { @apply text-base font-semibold; }
 
   /* Modal */
   .modal-overlay {
-    @apply fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-[60] p-0 sm:p-4;
+    @apply fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-[60] p-0 sm:p-4 overscroll-contain;
   }
   .modal-panel {
-    @apply bg-surface border border-surface-border shadow-card w-full sm:max-w-md rounded-t-2xl rounded-b-none sm:rounded-2xl max-h-[92vh] overflow-y-auto;
+    @apply bg-surface border border-surface-border shadow-card w-full sm:max-w-md rounded-t-2xl rounded-b-none sm:rounded-2xl max-h-[92vh] overflow-y-auto overscroll-contain;
   }
 
   /* Alert banner */

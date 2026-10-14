@@ -6,6 +6,7 @@ import { useExercisesStore } from '@/stores/exercises'
 import type { Exercise } from '@/types'
 import { validateExerciseName, validateSets, validateReps, validateMuscleGroups } from '@/utils/validators'
 import { muscleGroupStyle } from '@/utils/muscleGroupStyles'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 interface FormData {
   name: string
@@ -65,6 +66,7 @@ export function ExerciseForm({
   onSubmit: () => void
   onCancel: () => void
 }) {
+  useBodyScrollLock()
   const createExercise = useExercisesStore((s) => s.createExercise)
   const updateExercise = useExercisesStore((s) => s.updateExercise)
 

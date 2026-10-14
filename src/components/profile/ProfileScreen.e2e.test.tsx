@@ -1,8 +1,7 @@
 /**
  * End-to-end tests for ProfileScreen: program management (create, switch, rename,
  * duplicate, delete), routine management (create, edit, duplicate, delete), preference
- * toggles, the data & account section, and opening the plan builder / exercise manager
- * overlays.
+ * toggles, the data & account section, and opening the plan builder overlay.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
@@ -157,13 +156,22 @@ describe('E2E: ProfileScreen', () => {
     expect(screen.getByText('Monday')).toBeTruthy()
   })
 
-  it('opens the exercise manager overlay from "Manage exercises"', async () => {
-    const user = userEvent.setup()
+  it('no longer offers exercise management, which lives in Library', () => {
     render(<ProfileScreen />)
 
-    await user.click(screen.getByRole('button', { name: /manage exercises/i }))
+    expect(screen.queryByRole('button', { name: /manage exercises/i })).toBeNull()
+  })
 
-    expect(screen.getByText('Your exercises')).toBeTruthy()
+  it('locks the page behind the routine editor while it is open', async () => {
+    const user = userEvent.setup()
+    await useWorkoutTemplatesStore.getState().createTemplate('Legs')
+    render(<ProfileScreen />)
+
+    expect(document.documentElement).not.toHaveClass('scroll-locked')
+    await user.click(screen.getByRole('button', { name: 'Edit Legs' }))
+    expect(document.documentElement).toHaveClass('scroll-locked')
+    await user.click(screen.getByRole('button', { name: /^close$/i }))
+    expect(document.documentElement).not.toHaveClass('scroll-locked')
   })
 
   it('duplicates the active program', async () => {

@@ -6,6 +6,7 @@ import { useExercisesStore } from '@/stores/exercises'
 import { WORKOUT_LIBRARY, type LibraryWorkout } from '@/data/workoutLibrary'
 import { ensureExerciseFromLibrary, findExerciseForLibraryWorkout } from '@/utils/libraryExercise'
 import type { Exercise } from '@/types'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 /**
  * Full-screen editor for one routine (a `WorkoutTemplate`): rename it, reorder or remove
@@ -14,6 +15,7 @@ import type { Exercise } from '@/types'
  * the routine is assigned to.
  */
 export function RoutineEditor({ templateId, onClose }: { templateId: string; onClose: () => void }) {
+  useBodyScrollLock()
   const template = useWorkoutTemplatesStore((s) => s.templates.find((t) => t.id === templateId))
   const renameTemplate = useWorkoutTemplatesStore((s) => s.renameTemplate)
   const setTemplateExercises = useWorkoutTemplatesStore((s) => s.setTemplateExercises)
@@ -90,7 +92,7 @@ export function RoutineEditor({ templateId, onClose }: { templateId: string; onC
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 pwa-safe-bottom">
+      <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-5 pwa-safe-bottom">
         {error && (
           <div className="alert-error">
             <p className="text-red-400 text-sm">{error}</p>

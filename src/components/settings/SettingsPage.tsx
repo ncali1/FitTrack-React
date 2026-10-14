@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { useSettingsStore } from '@/stores/settings'
 import { BackupControls } from './BackupControls'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 const REST_PRESETS = [30, 60, 90, 120, 180]
 
@@ -12,6 +13,7 @@ const REST_PRESETS = [30, 60, 90, 120, 180]
  * these preferences are per-device and don't require signing in.
  */
 export function SettingsPage({ onClose }: { onClose: () => void }) {
+  useBodyScrollLock()
   const weightUnit = useSettingsStore((s) => s.weightUnit)
   const toggleWeightUnit = useSettingsStore((s) => s.toggleWeightUnit)
   const restDuration = useSettingsStore((s) => s.restDuration)

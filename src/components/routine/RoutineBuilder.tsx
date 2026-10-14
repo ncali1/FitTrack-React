@@ -5,6 +5,7 @@ import { useRoutineStore, selectActiveRoutine } from '@/stores/routine'
 import { useExercisesStore } from '@/stores/exercises'
 import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { DayPlanCard } from './DayPlanCard'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 const DAYS = [
   { key: 'monday', label: 'Monday' },
@@ -24,6 +25,7 @@ const DAYS = [
  * happens in Profile, one level up.
  */
 export function RoutineBuilder({ onClose }: { onClose: () => void }) {
+  useBodyScrollLock()
   const routines = useRoutineStore((s) => s.routines)
   const activeRoutine = selectActiveRoutine(routines)
   const assignExercise = useRoutineStore((s) => s.assignExercise)
@@ -75,7 +77,7 @@ export function RoutineBuilder({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 pwa-safe-bottom">
+      <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-3 pwa-safe-bottom">
         {error && (
           <div className="alert-error">
             <p className="text-red-400 text-sm">{error}</p>

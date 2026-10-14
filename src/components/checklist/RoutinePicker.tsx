@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import type { WorkoutTemplate } from '@/types'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 /**
  * Bottom sheet for choosing a routine to do on the selected day, regardless of what the
@@ -18,6 +19,7 @@ export function RoutinePicker({
   onPick: (templateId: string, mode: 'replace' | 'add') => void
   onCancel: () => void
 }) {
+  useBodyScrollLock()
   return createPortal(
     <div
       className="modal-overlay"
