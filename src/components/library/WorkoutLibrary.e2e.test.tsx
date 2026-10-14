@@ -10,6 +10,7 @@ import userEvent from '@testing-library/user-event'
 import { WorkoutLibrary } from './WorkoutLibrary'
 import { useExercisesStore } from '@/stores/exercises'
 import { useRoutineStore } from '@/stores/routine'
+import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { getDayOfWeek } from '@/utils/calculations'
 
 vi.mock('@/services/storage', () => ({
@@ -44,6 +45,7 @@ const mockedToast = vi.mocked(toast)
 
 const INITIAL_EXERCISES = useExercisesStore.getState()
 const INITIAL_ROUTINES = useRoutineStore.getState()
+const INITIAL_TEMPLATES = useWorkoutTemplatesStore.getState()
 
 const TODAY = getDayOfWeek(
   (() => {
@@ -56,6 +58,7 @@ describe('E2E: Workout Library', () => {
   beforeEach(() => {
     useExercisesStore.setState(INITIAL_EXERCISES, true)
     useRoutineStore.setState(INITIAL_ROUTINES, true)
+    useWorkoutTemplatesStore.setState(INITIAL_TEMPLATES, true)
     vi.clearAllMocks()
   })
 
@@ -219,5 +222,79 @@ describe('E2E: Workout Library', () => {
       expect(mockedToast).toHaveBeenCalledWith(expect.stringMatching(/already in today/i))
     })
     expect(mockedStorage.saveRoutine).not.toHaveBeenCalled()
+  })
+
+  describe('"Add to routine"', () => {
+    const openPicker = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole('heading', { level: 3, name: 'Barbell Bench Press' }))
+      await user.click(screen.getByRole('button', { name: 'Add to routine' }))
+    }
+
+    it('adds the exercise to an existing routine, creating it in the user\'s library first', async () => {
+      const user = userEvent.setup()
+      const routine = await useWorkoutTemplatesStore.getState().createTemplate('Push Day', ['other'])
+      render(<WorkoutLibrary />)
+
+      await openPicker(user)
+      await user.click(screen.getByRole('button', { name: 'Add to Push Day' }))
+
+      await waitFor(() => {
+        expect(useWorkoutTemplatesStore.getState().templates[0]?.exerciseIds).toHaveLength(2)
+      })
+      const bench = useExercisesStore.getState().exercises.find((e) => e.name === 'Barbell Bench Press')
+      expect(bench).toMatchObject({ targetSets: 4, targetReps: 8 })
+      expect(useWorkoutTemplatesStore.getState().templates[0]).toMatchObject({
+        id: routine.id,
+        exerciseIds: ['other', bench!.id],
+      })
+      expect(mockedToast.success).toHaveBeenCalledWith('Added to Push Day')
+      expect(screen.queryByRole('heading', { level: 2, name: 'Barbell Bench Press' })).toBeNull()
+      // Adding to a routine leaves today's plan alone.
+      expect(mockedStorage.saveRoutine).not.toHaveBeenCalled()
+    })
+
+    it('creates a new routine containing the exercise', async () => {
+      const user = userEvent.setup()
+      render(<WorkoutLibrary />)
+
+      await openPicker(user)
+      await user.click(screen.getByRole('button', { name: '+ New routine' }))
+      await user.type(screen.getByLabelText('Routine name'), 'Chest Day')
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(useWorkoutTemplatesStore.getState().templates).toHaveLength(1)
+      })
+      const bench = useExercisesStore.getState().exercises.find((e) => e.name === 'Barbell Bench Press')
+      expect(useWorkoutTemplatesStore.getState().templates[0]).toMatchObject({
+        name: 'Chest Day',
+        exerciseIds: [bench!.id],
+      })
+    })
+
+    it('marks a routine that already contains the exercise instead of adding it twice', async () => {
+      const user = userEvent.setup()
+      const bench = await useExercisesStore.getState().createExercise('barbell bench press', 3, 10, ['Chest'])
+      await useWorkoutTemplatesStore.getState().createTemplate('Push Day', [bench.id])
+      render(<WorkoutLibrary />)
+
+      await openPicker(user)
+
+      expect(screen.getByRole('button', { name: 'Already in Push Day' })).toBeDisabled()
+      expect(screen.queryByRole('button', { name: 'Add to Push Day' })).toBeNull()
+    })
+
+    it('"Cancel" returns to the main actions without changing anything', async () => {
+      const user = userEvent.setup()
+      await useWorkoutTemplatesStore.getState().createTemplate('Push Day')
+      render(<WorkoutLibrary />)
+
+      await openPicker(user)
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(screen.getByRole('button', { name: /add to today/i })).toBeTruthy()
+      expect(useWorkoutTemplatesStore.getState().templates[0]?.exerciseIds).toEqual([])
+      expect(mockedStorage.saveExercise).not.toHaveBeenCalled()
+    })
   })
 })

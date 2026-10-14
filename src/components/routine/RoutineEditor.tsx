@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, ChevronUp, ChevronDown } from 'lucide-react'
+import { X, ChevronUp, ChevronDown, Search } from 'lucide-react'
 import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { useExercisesStore } from '@/stores/exercises'
+import { WORKOUT_LIBRARY, type LibraryWorkout } from '@/data/workoutLibrary'
+import { ensureExerciseFromLibrary, findExerciseForLibraryWorkout } from '@/utils/libraryExercise'
 import type { Exercise } from '@/types'
 
 /**
  * Full-screen editor for one routine (a `WorkoutTemplate`): rename it, reorder or remove
- * its exercises, and add more from the exercise library. Every change saves immediately,
- * and shows up on each day the routine is assigned to.
+ * its exercises, and add more — either from the user's own exercises or straight from
+ * the built-in workout library. Every change saves immediately, and shows up on each day
+ * the routine is assigned to.
  */
 export function RoutineEditor({ templateId, onClose }: { templateId: string; onClose: () => void }) {
   const template = useWorkoutTemplatesStore((s) => s.templates.find((t) => t.id === templateId))
@@ -18,6 +21,7 @@ export function RoutineEditor({ templateId, onClose }: { templateId: string; onC
 
   const [nameInput, setNameInput] = useState(template?.name ?? '')
   const [error, setError] = useState<string | null>(null)
+  const [librarySearch, setLibrarySearch] = useState('')
 
   if (!template) return null
 
@@ -25,6 +29,15 @@ export function RoutineEditor({ templateId, onClose }: { templateId: string; onC
     .map((id) => exercises.find((e) => e.id === id))
     .filter((ex): ex is Exercise => ex !== undefined)
   const available = exercises.filter((ex) => !template.exerciseIds.includes(ex.id))
+  // Library entries the user doesn't have yet — ones they do have are already listed above.
+  const libraryQuery = librarySearch.trim().toLowerCase()
+  const libraryMatches = WORKOUT_LIBRARY.filter(
+    (workout) =>
+      !findExerciseForLibraryWorkout(workout, exercises) &&
+      (libraryQuery === '' ||
+        workout.name.toLowerCase().includes(libraryQuery) ||
+        workout.targetMuscleGroups.some((group) => group.toLowerCase().includes(libraryQuery)))
+  )
 
   const save = async (exerciseIds: string[]) => {
     try {
@@ -32,6 +45,16 @@ export function RoutineEditor({ templateId, onClose }: { templateId: string; onC
     } catch (err) {
       console.error('Failed to update routine:', err)
       setError('Failed to update routine. Please try again.')
+    }
+  }
+
+  const addFromLibrary = async (workout: LibraryWorkout) => {
+    try {
+      const exercise = await ensureExerciseFromLibrary(workout)
+      await setTemplateExercises(template.id, [...template.exerciseIds, exercise.id])
+    } catch (err) {
+      console.error('Failed to add from library:', err)
+      setError('Failed to add that exercise. Please try again.')
     }
   }
 
@@ -142,10 +165,10 @@ export function RoutineEditor({ templateId, onClose }: { templateId: string; onC
         </div>
 
         <div>
-          <span className="field-label">Add exercises</span>
+          <span className="field-label">Add your exercises</span>
           <div className="flex flex-wrap gap-1.5">
             {exercises.length === 0 ? (
-              <span className="text-xs text-ink-faint">No exercises yet — add some from Library first.</span>
+              <span className="text-xs text-ink-faint">You haven’t created any yet — pick from the library below.</span>
             ) : available.length === 0 ? (
               <span className="text-xs text-ink-faint">Every exercise you have is already in this routine.</span>
             ) : (
@@ -157,6 +180,43 @@ export function RoutineEditor({ templateId, onClose }: { templateId: string; onC
                   className="px-3 py-1.5 rounded-full text-xs font-semibold bg-transparent text-ink-muted border border-surface-border"
                 >
                   + {ex.name}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div>
+          <span className="field-label">Add from library</span>
+          <div className="relative mb-2.5">
+            <Search
+              size={16}
+              strokeWidth={2}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none"
+            />
+            <input
+              type="text"
+              value={librarySearch}
+              onChange={(e) => setLibrarySearch(e.target.value)}
+              placeholder="Search by name or muscle"
+              aria-label="Search workout library"
+              className="field-input !pl-10"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {libraryMatches.length === 0 ? (
+              <span className="text-xs text-ink-faint">
+                {libraryQuery === '' ? 'You already have every library exercise.' : 'No library exercises match.'}
+              </span>
+            ) : (
+              libraryMatches.map((workout) => (
+                <button
+                  key={workout.id}
+                  onClick={() => addFromLibrary(workout)}
+                  aria-label={`Add ${workout.name} from library`}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-transparent text-ink-muted border border-surface-border"
+                >
+                  + {workout.name}
                 </button>
               ))
             )}

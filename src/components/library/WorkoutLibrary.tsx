@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Search, X, Dumbbell, ChevronRight } from 'lucide-react'
+import { Search, X, Dumbbell, ChevronRight, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { useExercisesStore } from '@/stores/exercises'
 import { useRoutineStore } from '@/stores/routine'
@@ -9,6 +9,10 @@ import { getDayOfWeek, getPlannedExerciseIds } from '@/utils/calculations'
 import { useActiveProgram } from '@/hooks/useActiveProgram'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { WORKOUT_LIBRARY, type LibraryWorkout } from '@/data/workoutLibrary'
+import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
+import { ensureExerciseFromLibrary, findExerciseForLibraryWorkout } from '@/utils/libraryExercise'
+import { InlineNameForm } from '@/components/profile/InlineNameForm'
+import type { WorkoutTemplate } from '@/types'
 
 /** Broader region groupings for the filter chips — several raw muscle groups collapse
  *  into one chip (e.g. Biceps/Triceps/Forearms -> Arms) to keep the filter row short. */
@@ -34,7 +38,9 @@ function todayString(): string {
  */
 export function WorkoutLibrary() {
   const exercises = useExercisesStore((s) => s.exercises)
-  const createExercise = useExercisesStore((s) => s.createExercise)
+  const templates = useWorkoutTemplatesStore((s) => s.templates)
+  const createTemplate = useWorkoutTemplatesStore((s) => s.createTemplate)
+  const setTemplateExercises = useWorkoutTemplatesStore((s) => s.setTemplateExercises)
   const activeRoutine = useActiveProgram()
   const todaySession = useWorkoutSessionsStore((s) => s.sessions.find((session) => session.date === todayString()))
   const setPlannedExercises = useWorkoutSessionsStore((s) => s.setPlannedExercises)
@@ -44,6 +50,15 @@ export function WorkoutLibrary() {
   const [selectedGroup, setSelectedGroup] = useState('All')
   const [selectedDetail, setSelectedDetail] = useState<LibraryWorkout | null>(null)
   const [adding, setAdding] = useState(false)
+  /** Whether the detail sheet is showing its routine list instead of its main actions. */
+  const [pickingRoutine, setPickingRoutine] = useState(false)
+  const [namingRoutine, setNamingRoutine] = useState(false)
+
+  const closeDetail = () => {
+    setSelectedDetail(null)
+    setPickingRoutine(false)
+    setNamingRoutine(false)
+  }
 
   const today = getDayOfWeek(todayString())
   const todayAssignedIds = getPlannedExerciseIds(todayString(), activeRoutine, todaySession)
@@ -62,17 +77,7 @@ export function WorkoutLibrary() {
     if (!selectedDetail) return
     setAdding(true)
     try {
-      const existing = exercises.find((e) => e.name.toLowerCase() === selectedDetail.name.toLowerCase())
-      const exerciseId = existing
-        ? existing.id
-        : (
-            await createExercise(
-              selectedDetail.name,
-              selectedDetail.targetSets,
-              selectedDetail.targetReps,
-              [...selectedDetail.targetMuscleGroups]
-            )
-          ).id
+      const exerciseId = (await ensureExerciseFromLibrary(selectedDetail)).id
 
       if (todayAssignedIds.includes(exerciseId)) {
         toast('Already in today’s plan')
@@ -84,7 +89,7 @@ export function WorkoutLibrary() {
         await assignExercise(today, exerciseId)
         toast.success('Added to today’s workout')
       }
-      setSelectedDetail(null)
+      closeDetail()
     } catch (err) {
       console.error('Failed to add to today:', err)
       toast.error('Failed to add to today')
@@ -92,6 +97,30 @@ export function WorkoutLibrary() {
       setAdding(false)
     }
   }
+
+  /** Adds the open library entry to an existing routine, or to a new one named `newName`. */
+  const handleAddToRoutine = async (target: WorkoutTemplate | { newName: string }) => {
+    if (!selectedDetail) return
+    setAdding(true)
+    try {
+      const exerciseId = (await ensureExerciseFromLibrary(selectedDetail)).id
+      if ('newName' in target) {
+        await createTemplate(target.newName, [exerciseId])
+        toast.success(`Created ${target.newName} with ${selectedDetail.name}`)
+      } else {
+        await setTemplateExercises(target.id, [...target.exerciseIds, exerciseId])
+        toast.success(`Added to ${target.name}`)
+      }
+      closeDetail()
+    } catch (err) {
+      console.error('Failed to add to routine:', err)
+      toast.error('Failed to add to routine')
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const selectedExerciseId = selectedDetail ? findExerciseForLibraryWorkout(selectedDetail, exercises)?.id : undefined
 
   return (
     <div className="space-y-4">
@@ -170,7 +199,7 @@ export function WorkoutLibrary() {
           <div
             className="modal-overlay"
             onClick={(e) => {
-              if (e.target === e.currentTarget) setSelectedDetail(null)
+              if (e.target === e.currentTarget) closeDetail()
             }}
           >
             <div className="modal-panel">
@@ -186,14 +215,74 @@ export function WorkoutLibrary() {
                     </span>
                   ))}
                 </div>
-                <div className="flex gap-3">
-                  <button className="btn-secondary flex-1" onClick={() => setSelectedDetail(null)}>
-                    Close
-                  </button>
-                  <button className="btn-primary flex-1" disabled={adding} onClick={handleAddToToday}>
-                    {adding ? 'Adding...' : 'Add to today'}
-                  </button>
-                </div>
+                {pickingRoutine ? (
+                  <div className="space-y-3">
+                    <span className="field-label">Add to routine</span>
+                    {templates.length > 0 && (
+                      <ul className="divide-y divide-surface-border">
+                        {templates.map((template) => {
+                          const included = selectedExerciseId !== undefined && template.exerciseIds.includes(selectedExerciseId)
+                          const count = template.exerciseIds.length
+                          return (
+                            <li key={template.id}>
+                              <button
+                                onClick={() => handleAddToRoutine(template)}
+                                disabled={adding || included}
+                                aria-label={included ? `Already in ${template.name}` : `Add to ${template.name}`}
+                                className="w-full flex items-center justify-between gap-3 py-2.5 text-left disabled:opacity-60"
+                              >
+                                <span className="min-w-0">
+                                  <span className="block text-sm text-ink truncate">{template.name}</span>
+                                  <span className="block text-[11px] text-ink-muted">
+                                    {count} {count === 1 ? 'exercise' : 'exercises'}
+                                  </span>
+                                </span>
+                                {included ? (
+                                  <span className="flex items-center gap-1 text-xs text-ink-muted flex-none">
+                                    <Check size={14} strokeWidth={2.5} />
+                                    Added
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-semibold text-accent flex-none">Add</span>
+                                )}
+                              </button>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                    {namingRoutine ? (
+                      <InlineNameForm
+                        label="Routine name"
+                        onSave={(name) => handleAddToRoutine({ newName: name })}
+                        onCancel={() => setNamingRoutine(false)}
+                      />
+                    ) : (
+                      <>
+                        <button className="btn-secondary w-full" onClick={() => setNamingRoutine(true)}>
+                          + New routine
+                        </button>
+                        <button className="btn-ghost w-full" onClick={() => setPickingRoutine(false)}>
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
+                      <button className="btn-primary flex-1" disabled={adding} onClick={handleAddToToday}>
+                        {adding ? 'Adding...' : 'Add to today'}
+                      </button>
+                      <button className="btn-primary flex-1" disabled={adding} onClick={() => setPickingRoutine(true)}>
+                        Add to routine
+                      </button>
+                    </div>
+                    <button className="btn-secondary w-full" onClick={closeDetail}>
+                      Close
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>,

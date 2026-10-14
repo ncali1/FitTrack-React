@@ -210,6 +210,30 @@ describe('E2E: ProfileScreen', () => {
       expect(useWorkoutTemplatesStore.getState().templates[0]?.name).toBe('Push Day')
     })
 
+    it('adds an exercise to a routine straight from the workout library, without duplicating one the user has', async () => {
+      const user = userEvent.setup()
+      // Same exercise as a library entry, under different capitalisation.
+      await useExercisesStore.getState().createExercise('barbell bench press', 3, 10, ['Chest'])
+      await useWorkoutTemplatesStore.getState().createTemplate('Push Day')
+      render(<ProfileScreen />)
+
+      await user.click(screen.getByRole('button', { name: 'Edit Push Day' }))
+
+      // Already owned, so it is offered under the user's exercises, not as a library entry.
+      expect(screen.queryByRole('button', { name: 'Add Barbell Bench Press from library' })).toBeNull()
+
+      await user.type(screen.getByLabelText('Search workout library'), 'overhead')
+      await user.click(screen.getByRole('button', { name: 'Add Overhead Press from library' }))
+
+      await waitFor(() => {
+        expect(useWorkoutTemplatesStore.getState().templates[0]?.exerciseIds).toHaveLength(1)
+      })
+      const press = useExercisesStore.getState().exercises.find((e) => e.name === 'Overhead Press')
+      expect(press).toBeTruthy()
+      expect(useWorkoutTemplatesStore.getState().templates[0]?.exerciseIds).toEqual([press!.id])
+      expect(useExercisesStore.getState().exercises).toHaveLength(2)
+    })
+
     it('lists each routine with its exercise count and the days it is scheduled on', async () => {
       await useRoutineStore.getState().loadRoutines()
       const template = await useWorkoutTemplatesStore.getState().createTemplate('Legs', ['a', 'b'])
