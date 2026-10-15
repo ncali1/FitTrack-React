@@ -68,7 +68,7 @@ export function RoutineBuilder({ onClose }: { onClose: () => void }) {
   return createPortal(
     // z-55, deliberately below .modal-overlay's z-60 — DayPlanCard doesn't open a modal
     // itself, but staying under that threshold keeps this sheet consistent with
-    // ExerciseManagerSheet, which does.
+    // RoutineEditor, the other full-screen sheet.
     <div className="fixed inset-0 z-[55] bg-canvas flex flex-col">
       <div className="flex-none pwa-safe-top flex items-center justify-between px-5 py-4 border-b border-surface-border">
         <h3 className="text-ink">Weekly plan</h3>
