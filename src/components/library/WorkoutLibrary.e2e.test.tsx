@@ -297,4 +297,101 @@ describe('E2E: Workout Library', () => {
       expect(mockedStorage.saveExercise).not.toHaveBeenCalled()
     })
   })
+
+  describe('your own exercises in the same list', () => {
+    it('lists a custom exercise alongside the catalog, marked Custom', async () => {
+      await useExercisesStore.getState().createExercise('Landmine Press', 3, 10, ['Shoulders'])
+      render(<WorkoutLibrary />)
+
+      const row = screen.getByRole('heading', { level: 3, name: 'Landmine Press' }).closest('[role="button"]') as HTMLElement
+      expect(within(row).getByText('Custom')).toBeTruthy()
+      // A catalog entry has no Custom badge.
+      const catalogRow = screen.getByRole('heading', { level: 3, name: 'Overhead Press' }).closest('[role="button"]') as HTMLElement
+      expect(within(catalogRow).queryByText('Custom')).toBeNull()
+    })
+
+    it('shows a catalog entry only once after the user has their own copy of it, with their targets', async () => {
+      await useExercisesStore.getState().createExercise('barbell bench press', 5, 5, ['Chest'])
+      render(<WorkoutLibrary />)
+
+      const rows = screen.getAllByRole('heading', { level: 3, name: /^barbell bench press$/i })
+      expect(rows).toHaveLength(1)
+      expect(within(rows[0]!.closest('[role="button"]') as HTMLElement).getByText(/^5×5/)).toBeTruthy()
+    })
+
+    it('includes custom exercises in search and muscle filters', async () => {
+      const user = userEvent.setup()
+      await useExercisesStore.getState().createExercise('Landmine Press', 3, 10, ['Shoulders'])
+      render(<WorkoutLibrary />)
+
+      await user.click(screen.getByRole('button', { name: 'Chest' }))
+      expect(screen.queryByRole('heading', { level: 3, name: 'Landmine Press' })).toBeNull()
+      await user.click(screen.getByRole('button', { name: 'Shoulders' }))
+      expect(screen.getByRole('heading', { level: 3, name: 'Landmine Press' })).toBeTruthy()
+
+      await user.type(screen.getByLabelText('Search workout library'), 'landmine')
+      expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(1)
+    })
+
+    it('tints each exercise icon by its main muscle group', () => {
+      render(<WorkoutLibrary />)
+
+      const iconTile = (name: string) =>
+        (screen.getByRole('heading', { level: 3, name }).closest('[role="button"]') as HTMLElement).firstElementChild!
+      expect(iconTile('Barbell Curl').className).toContain('pink')
+      expect(iconTile('Back Squat').className).toContain('emerald')
+      expect(iconTile('Barbell Curl').className).not.toBe(iconTile('Back Squat').className)
+    })
+
+    it('"Add exercise" creates a custom exercise that then appears in the list', async () => {
+      const user = userEvent.setup()
+      render(<WorkoutLibrary />)
+
+      await user.click(screen.getByRole('button', { name: /add exercise/i }))
+      await user.type(screen.getByLabelText(/name/i), 'Landmine Press')
+      await user.click(screen.getByRole('checkbox', { name: 'Shoulders' }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      expect(await screen.findByRole('heading', { level: 3, name: 'Landmine Press' })).toBeTruthy()
+      expect(useExercisesStore.getState().exercises.map((e) => e.name)).toEqual(['Landmine Press'])
+    })
+
+    it('offers Edit and Delete for a custom exercise, but not for a catalog entry', async () => {
+      const user = userEvent.setup()
+      await useExercisesStore.getState().createExercise('Landmine Press', 3, 10, ['Shoulders'])
+      render(<WorkoutLibrary />)
+
+      await user.click(screen.getByRole('heading', { level: 3, name: 'Overhead Press' }))
+      expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
+      await user.click(screen.getByRole('button', { name: 'Close' }))
+
+      await user.click(screen.getByRole('heading', { level: 3, name: 'Landmine Press' }))
+      expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
+
+      vi.stubGlobal('confirm', vi.fn(() => true))
+      await user.click(screen.getByRole('button', { name: 'Delete' }))
+      vi.unstubAllGlobals()
+
+      await waitFor(() => {
+        expect(useExercisesStore.getState().exercises).toEqual([])
+      })
+      expect(screen.queryByRole('heading', { level: 3, name: 'Landmine Press' })).toBeNull()
+    })
+
+    it('adds a custom exercise to a routine without creating anything new', async () => {
+      const user = userEvent.setup()
+      const custom = await useExercisesStore.getState().createExercise('Landmine Press', 3, 10, ['Shoulders'])
+      await useWorkoutTemplatesStore.getState().createTemplate('Push Day')
+      render(<WorkoutLibrary />)
+
+      await user.click(screen.getByRole('heading', { level: 3, name: 'Landmine Press' }))
+      await user.click(screen.getByRole('button', { name: 'Add to routine' }))
+      await user.click(screen.getByRole('button', { name: 'Add to Push Day' }))
+
+      await waitFor(() => {
+        expect(useWorkoutTemplatesStore.getState().templates[0]?.exerciseIds).toEqual([custom.id])
+      })
+      expect(useExercisesStore.getState().exercises).toHaveLength(1)
+    })
+  })
 })
