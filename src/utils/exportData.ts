@@ -1,8 +1,8 @@
 import { storageService } from '@/services/storage'
-import type { Exercise, Routine, WorkoutTemplate, WorkoutSession, BodyWeightLog } from '@/types'
+import type { Exercise, Routine, WorkoutTemplate, WorkoutSession, BodyWeightLog, CardioSession } from '@/types'
 
 /** Bumped whenever the backup shape changes in a way future code needs to branch on. */
-export const BACKUP_VERSION = 2
+export const BACKUP_VERSION = 3
 
 /** A full snapshot of everything storageService holds, suitable for download/restore. */
 export interface Backup {
@@ -15,6 +15,8 @@ export interface Backup {
   workoutTemplates?: WorkoutTemplate[]
   workoutSessions: WorkoutSession[]
   bodyWeightLogs: BodyWeightLog[]
+  /** Absent from backups made before cardio logging (versions 1 and 2). */
+  cardioSessions?: CardioSession[]
 }
 
 /** Thrown by {@link readBackupFile} when a file's contents don't look like a valid backup. */
@@ -32,16 +34,18 @@ export interface RestoreCounts {
   workoutTemplates: number
   workoutSessions: number
   bodyWeightLogs: number
+  cardioSessions: number
 }
 
 /** Gathers everything from storageService into a single, timestamped backup object. */
 export async function buildBackup(): Promise<Backup> {
-  const [exercises, routines, workoutTemplates, workoutSessions, bodyWeightLogs] = await Promise.all([
+  const [exercises, routines, workoutTemplates, workoutSessions, bodyWeightLogs, cardioSessions] = await Promise.all([
     storageService.getAllExercises(),
     storageService.getAllRoutines(),
     storageService.getAllWorkoutTemplates(),
     storageService.getAllWorkoutSessions(),
     storageService.getAllBodyWeightLogs(),
+    storageService.getAllCardioSessions(),
   ])
 
   return {
@@ -52,6 +56,7 @@ export async function buildBackup(): Promise<Backup> {
     workoutTemplates,
     workoutSessions,
     bodyWeightLogs,
+    cardioSessions,
   }
 }
 
@@ -96,8 +101,8 @@ function assertBackupShape(parsed: unknown): asserts parsed is Backup {
   ) {
     throw new InvalidBackupError()
   }
-  if (candidate.workoutTemplates !== undefined && !isPlainObjectArray(candidate.workoutTemplates)) {
-    throw new InvalidBackupError()
+  for (const optional of [candidate.workoutTemplates, candidate.cardioSessions]) {
+    if (optional !== undefined && !isPlainObjectArray(optional)) throw new InvalidBackupError()
   }
 }
 
@@ -128,6 +133,8 @@ export async function restoreBackup(backup: Backup): Promise<RestoreCounts> {
   await Promise.all(workoutTemplates.map((template) => storageService.saveWorkoutTemplate(template)))
   await Promise.all(backup.workoutSessions.map((session) => storageService.saveWorkoutSession(session)))
   await Promise.all(backup.bodyWeightLogs.map((log) => storageService.saveBodyWeightLog(log)))
+  const cardioSessions = backup.cardioSessions ?? []
+  await Promise.all(cardioSessions.map((session) => storageService.saveCardioSession(session)))
 
   return {
     exercises: backup.exercises.length,
@@ -135,5 +142,6 @@ export async function restoreBackup(backup: Backup): Promise<RestoreCounts> {
     workoutTemplates: workoutTemplates.length,
     workoutSessions: backup.workoutSessions.length,
     bodyWeightLogs: backup.bodyWeightLogs.length,
+    cardioSessions: cardioSessions.length,
   }
 }

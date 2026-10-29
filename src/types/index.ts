@@ -106,6 +106,38 @@ export interface WorkoutSession {
   updatedAt: number
 }
 
+/** Kinds of cardio a session can be; labels and pace conventions live in utils/cardio. */
+export type CardioType =
+  | 'run'
+  | 'walk'
+  | 'cycle'
+  | 'row'
+  | 'swim'
+  | 'elliptical'
+  | 'stairs'
+  | 'hike'
+  | 'hiit'
+  | 'other'
+
+/** One logged cardio session. Several can share a date. */
+export interface CardioSession {
+  id: string
+  /** YYYY-MM-DD format */
+  date: string
+  type: CardioType
+  durationSeconds: number
+  /** Canonical distance in kilometres; display-unit conversion happens only at render time. */
+  distanceKm?: number
+  /** Average heart rate, beats per minute. */
+  avgHeartRate?: number
+  calories?: number
+  notes?: string
+  /** Unix milliseconds */
+  createdAt: number
+  /** Unix milliseconds */
+  updatedAt: number
+}
+
 /** A single day's logged body weight, separate from workout performance data. */
 export interface BodyWeightLog {
   id: string

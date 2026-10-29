@@ -57,6 +57,21 @@ create table if not exists public.workout_templates (
   updated_at bigint not null
 );
 
+-- 6. Cardio sessions (several per day allowed; distance stored in km) ---
+create table if not exists public.cardio_sessions (
+  id uuid primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date text not null,
+  type text not null,
+  duration_seconds int not null,
+  distance_km double precision,
+  avg_heart_rate int,
+  calories int,
+  notes text,
+  created_at bigint not null,
+  updated_at bigint not null
+);
+
 -- Columns added after the first release. Re-running this file adds them to an existing project.
 alter table public.exercises add column if not exists notes text;
 alter table public.exercises add column if not exists rest_seconds int;
@@ -71,6 +86,7 @@ create index if not exists routines_user_id_idx on public.routines (user_id);
 create index if not exists workout_templates_user_id_idx on public.workout_templates (user_id);
 create index if not exists workout_sessions_user_id_idx on public.workout_sessions (user_id);
 create index if not exists workout_sessions_user_date_idx on public.workout_sessions (user_id, date);
+create index if not exists cardio_sessions_user_date_idx on public.cardio_sessions (user_id, date);
 create index if not exists body_weight_logs_user_id_idx on public.body_weight_logs (user_id);
 create index if not exists body_weight_logs_user_date_idx on public.body_weight_logs (user_id, date);
 
@@ -80,6 +96,7 @@ alter table public.routines enable row level security;
 alter table public.workout_templates enable row level security;
 alter table public.workout_sessions enable row level security;
 alter table public.body_weight_logs enable row level security;
+alter table public.cardio_sessions enable row level security;
 
 drop policy if exists "exercises_owner" on public.exercises;
 create policy "exercises_owner" on public.exercises
@@ -95,6 +112,10 @@ create policy "workout_templates_owner" on public.workout_templates
 
 drop policy if exists "workout_sessions_owner" on public.workout_sessions;
 create policy "workout_sessions_owner" on public.workout_sessions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "cardio_sessions_owner" on public.cardio_sessions;
+create policy "cardio_sessions_owner" on public.cardio_sessions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists "body_weight_logs_owner" on public.body_weight_logs;

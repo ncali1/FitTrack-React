@@ -1,6 +1,6 @@
 import { getSupabase, isCloudEnabled } from './supabaseClient'
 import { storageService } from './storage'
-import type { Exercise, Routine, WorkoutTemplate, WorkoutSession, BodyWeightLog } from '@/types'
+import type { Exercise, Routine, WorkoutTemplate, WorkoutSession, BodyWeightLog, CardioSession } from '@/types'
 
 /**
  * Bridges the local IndexedDB store (source of truth for instant reads/writes) with
@@ -32,6 +32,8 @@ type QueueOp =
   | { type: 'deleteSession'; payload: { id: string } }
   | { type: 'upsertBodyWeightLog'; payload: BodyWeightLog }
   | { type: 'deleteBodyWeightLog'; payload: { id: string } }
+  | { type: 'upsertCardioSession'; payload: CardioSession }
+  | { type: 'deleteCardioSession'; payload: { id: string } }
 
 function readQueue(): QueueOp[] {
   try {
@@ -70,7 +72,7 @@ const OPTIONAL_COLUMNS = {
   workout_sessions: { duration_seconds: 'durationSeconds', planned_exercise_ids: 'plannedExerciseIds' },
 } as const
 
-type TableName = keyof typeof OPTIONAL_COLUMNS | 'workout_templates' | 'body_weight_logs'
+type TableName = keyof typeof OPTIONAL_COLUMNS | 'workout_templates' | 'body_weight_logs' | 'cardio_sessions'
 
 /** PostgREST's error code for a payload column the table doesn't have. */
 const UNKNOWN_COLUMN = 'PGRST204'
@@ -231,6 +233,38 @@ function fromBodyWeightLogRow(row: any): BodyWeightLog {
   }
 }
 
+/** Row shape sent to/received from the `cardio_sessions` table. */
+function toCardioSessionRow(userId: string, s: CardioSession) {
+  return {
+    id: s.id,
+    user_id: userId,
+    date: s.date,
+    type: s.type,
+    duration_seconds: s.durationSeconds,
+    distance_km: s.distanceKm ?? null,
+    avg_heart_rate: s.avgHeartRate ?? null,
+    calories: s.calories ?? null,
+    notes: s.notes ?? null,
+    created_at: s.createdAt,
+    updated_at: s.updatedAt,
+  }
+}
+
+function fromCardioSessionRow(row: any): CardioSession {
+  return {
+    id: row.id,
+    date: row.date,
+    type: row.type,
+    durationSeconds: row.duration_seconds,
+    ...(row.distance_km != null ? { distanceKm: row.distance_km } : {}),
+    ...(row.avg_heart_rate != null ? { avgHeartRate: row.avg_heart_rate } : {}),
+    ...(row.calories != null ? { calories: row.calories } : {}),
+    ...(row.notes ? { notes: row.notes } : {}),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
 /** Pushes a single exercise upsert to Supabase. Queues it for retry on failure. */
 export async function syncUpsertExercise(userId: string, exercise: Exercise) {
   if (!isCloudEnabled()) return
@@ -343,6 +377,28 @@ export async function syncDeleteBodyWeightLog(userId: string, id: string) {
   }
 }
 
+/** Pushes a cardio session upsert to Supabase. Queues it for retry on failure. */
+export async function syncUpsertCardioSession(userId: string, session: CardioSession) {
+  if (!isCloudEnabled()) return
+  try {
+    await upsertRow('cardio_sessions', toCardioSessionRow(userId, session))
+  } catch {
+    enqueue({ type: 'upsertCardioSession', payload: session })
+  }
+}
+
+/** Pushes a cardio session deletion to Supabase. Queues it for retry on failure. */
+export async function syncDeleteCardioSession(userId: string, id: string) {
+  if (!isCloudEnabled()) return
+  try {
+    const supabase = getSupabase()!
+    const { error } = await supabase.from('cardio_sessions').delete().eq('id', id).eq('user_id', userId)
+    if (error) throw error
+  } catch {
+    enqueue({ type: 'deleteCardioSession', payload: { id } })
+  }
+}
+
 /**
  * Retries any queued operations left over from a previous offline period.
  * Safe to call repeatedly — clears each op from the queue only once it succeeds.
@@ -384,6 +440,15 @@ export async function flushQueue(userId: string) {
           .eq('id', op.payload.id)
           .eq('user_id', userId)
         if (error) throw error
+      } else if (op.type === 'upsertCardioSession') {
+        await upsertRow('cardio_sessions', toCardioSessionRow(userId, op.payload))
+      } else if (op.type === 'deleteCardioSession') {
+        const { error } = await supabase
+          .from('cardio_sessions')
+          .delete()
+          .eq('id', op.payload.id)
+          .eq('user_id', userId)
+        if (error) throw error
       } else if (op.type === 'upsertBodyWeightLog') {
         const { error } = await supabase.from('body_weight_logs').upsert(toBodyWeightLogRow(userId, op.payload))
         if (error) throw error
@@ -411,12 +476,13 @@ export async function pullAndHydrate(userId: string) {
   if (!isCloudEnabled()) return
   const supabase = getSupabase()!
 
-  const [exercisesRes, routinesRes, templatesRes, sessionsRes, bodyWeightLogsRes] = await Promise.all([
+  const [exercisesRes, routinesRes, templatesRes, sessionsRes, bodyWeightLogsRes, cardioRes] = await Promise.all([
     supabase.from('exercises').select('*').eq('user_id', userId),
     supabase.from('routines').select('*').eq('user_id', userId),
     supabase.from('workout_templates').select('*').eq('user_id', userId),
     supabase.from('workout_sessions').select('*').eq('user_id', userId),
     supabase.from('body_weight_logs').select('*').eq('user_id', userId),
+    supabase.from('cardio_sessions').select('*').eq('user_id', userId),
   ])
 
   const byId = <T extends { id: string }>(records: T[]) => new Map(records.map((r) => [r.id, r]))
@@ -450,6 +516,12 @@ export async function pullAndHydrate(userId: string) {
       )
     }
   }
+  // Like templates: `data` is null when the table doesn't exist yet, and local sessions stay.
+  if (cardioRes.data) {
+    for (const row of cardioRes.data) {
+      await storageService.saveCardioSession(fromCardioSessionRow(row))
+    }
+  }
   if (bodyWeightLogsRes.data) {
     for (const row of bodyWeightLogsRes.data) {
       await storageService.saveBodyWeightLog(fromBodyWeightLogRow(row))
@@ -465,7 +537,14 @@ export async function pullAndHydrate(userId: string) {
 export async function deleteAllCloudData(userId: string) {
   if (!isCloudEnabled()) return
   const supabase = getSupabase()!
-  const tables: TableName[] = ['workout_sessions', 'body_weight_logs', 'routines', 'workout_templates', 'exercises']
+  const tables: TableName[] = [
+    'workout_sessions',
+    'cardio_sessions',
+    'body_weight_logs',
+    'routines',
+    'workout_templates',
+    'exercises',
+  ]
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().eq('user_id', userId)
     // 42P01 / PGRST205: the table was never created, so there is nothing to delete.

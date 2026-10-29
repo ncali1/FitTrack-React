@@ -9,6 +9,9 @@ vi.mock('@/services/storage', () => ({
     deleteRoutine: vi.fn(async () => {}),
     saveWorkoutTemplate: vi.fn(async () => {}),
     getAllWorkoutTemplates: vi.fn(async () => []),
+    saveCardioSession: vi.fn(async () => {}),
+    getAllCardioSessions: vi.fn(async () => []),
+    deleteCardioSession: vi.fn(async () => {}),
     deleteWorkoutTemplate: vi.fn(async () => {}),
   },
 }))

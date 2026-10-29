@@ -5,7 +5,7 @@ import { reloadAllStores } from '@/stores/reloadAllStores'
 import { downloadBackup, readBackupFile, restoreBackup, InvalidBackupError, type RestoreCounts } from '@/utils/exportData'
 
 function summarizeCounts(counts: RestoreCounts): string {
-  return `${counts.exercises} exercises, ${counts.workoutTemplates} routines, ${counts.routines} programs, ${counts.workoutSessions} sessions, ${counts.bodyWeightLogs} body weight logs`
+  return `${counts.exercises} exercises, ${counts.workoutTemplates} routines, ${counts.routines} programs, ${counts.workoutSessions} sessions, ${counts.bodyWeightLogs} body weight logs, ${counts.cardioSessions} cardio sessions`
 }
 
 /**

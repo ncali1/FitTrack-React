@@ -3,6 +3,7 @@ import { useRoutineStore } from './routine'
 import { useWorkoutTemplatesStore } from './workoutTemplates'
 import { useWorkoutSessionsStore } from './workoutSessions'
 import { useBodyWeightStore } from './bodyWeight'
+import { useCardioStore } from './cardio'
 
 /** Re-reads every data store from IndexedDB after something rewrote it underneath them. */
 export async function reloadAllStores() {
@@ -12,5 +13,6 @@ export async function reloadAllStores() {
     useWorkoutTemplatesStore.getState().loadTemplates(),
     useWorkoutSessionsStore.getState().loadSessions(),
     useBodyWeightStore.getState().loadLogs(),
+    useCardioStore.getState().loadSessions(),
   ])
 }

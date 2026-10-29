@@ -8,9 +8,9 @@ Installable to a phone's home screen like a native app (manifest + service worke
 ## Screens
 
 - **Home** — today's plan at a glance, training streak, week completion, latest body weight, and a shortcut into Train.
-- **Train** — the daily checklist, plus a guided session mode that walks through pending exercises one at a time with a rest timer between sets and a completion summary. Any routine can be done on any day from here, replacing or adding to what was scheduled.
+- **Train** — the daily checklist, plus a guided session mode that walks through pending exercises one at a time with a rest timer between sets and a completion summary. Any routine can be done on any day from here, replacing or adding to what was scheduled. Cardio sessions (run, ride, row, swim and more, with distance, pace, heart rate and calories) are logged here too.
 - **Library** — a searchable, filterable catalog of exercises; tapping one lets you add it straight to today's plan.
-- **Progress** — this week's completion at a glance, a per-exercise weight/reps/completion chart picker with personal records, and the body weight trend (with its own log-entry form).
+- **Progress** — this week's completion and cardio totals at a glance, a per-exercise weight/reps/completion chart picker with personal records, and the body weight trend (with its own log-entry form).
 - **Profile** — lifetime stats, routines (reusable exercise lists like “Push Day”: create, edit, reorder, duplicate, delete), the weekly plan builder (assign routines and single exercises to days, with multiple switchable programs), exercise management, workout preferences (units, rest timer length/sound/vibration, keep-screen-awake, notifications), and data & account (backup export/import, change password, privacy policy, delete all data).
 - **Onboarding** — a first-launch, three-step introduction (shown once per device).
 

@@ -1,11 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { WeightUnit } from '@/utils/units'
+import type { DistanceUnit } from '@/utils/cardio'
 
 const DEFAULT_REST_SECONDS = 90
 
 interface SettingsState {
   weightUnit: WeightUnit
+  /** Display unit for cardio distances; stored distances are always km. */
+  distanceUnit: DistanceUnit
   restDuration: number
   /** `null` means the user has never been asked yet (first-run state). */
   remindersEnabled: boolean | null
@@ -17,6 +20,7 @@ interface SettingsState {
   keepScreenAwake: boolean
 
   toggleWeightUnit: () => void
+  setDistanceUnit: (unit: DistanceUnit) => void
   setRestDuration: (seconds: number) => void
   setRemindersEnabled: (enabled: boolean) => void
   setRestTimerSound: (enabled: boolean) => void
@@ -33,6 +37,7 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       weightUnit: 'kg',
+      distanceUnit: 'km',
       restDuration: DEFAULT_REST_SECONDS,
       remindersEnabled: null,
       restTimerSound: false,
@@ -40,6 +45,7 @@ export const useSettingsStore = create<SettingsState>()(
       keepScreenAwake: true,
 
       toggleWeightUnit: () => set((state) => ({ weightUnit: state.weightUnit === 'kg' ? 'lb' : 'kg' })),
+      setDistanceUnit: (unit) => set({ distanceUnit: unit }),
       setRestDuration: (seconds) => set({ restDuration: seconds }),
       setRemindersEnabled: (enabled) => set({ remindersEnabled: enabled }),
       setRestTimerSound: (enabled) => set({ restTimerSound: enabled }),

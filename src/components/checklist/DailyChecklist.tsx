@@ -19,6 +19,7 @@ import { PRToast } from './PRToast'
 import { GuidedSession } from './GuidedSession'
 import { SessionGroupPicker } from './SessionGroupPicker'
 import { RoutinePicker } from './RoutinePicker'
+import { CardioDayCard } from '@/components/cardio/CardioDayCard'
 
 interface SessionSummary {
   count: number
@@ -374,6 +375,8 @@ export function DailyChecklist() {
               </button>
             )}
           </div>
+
+          <CardioDayCard date={selectedDate} />
 
           {showRoutinePicker && (
             <RoutinePicker

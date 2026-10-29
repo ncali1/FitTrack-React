@@ -18,6 +18,7 @@ import { CompletionRateChart } from './CompletionRateChart'
 import { ExerciseHistory } from './ExerciseHistory'
 import { BodyWeightChart } from '@/components/bodyweight/BodyWeightChart'
 import { BodyWeightLogForm } from '@/components/bodyweight/BodyWeightLogForm'
+import { CardioSummary } from '@/components/cardio/CardioSummary'
 
 function todayString(): string {
   const d = new Date()
@@ -131,6 +132,11 @@ export function ProgressGraphs() {
           )}
         </div>
         <WeeklyBars breakdown={weekSummary?.dailyBreakdown ?? {}} today={getDayOfWeek(today)} />
+      </div>
+
+      <div>
+        <h6 className="text-ink-muted text-sm mb-2.5">Cardio</h6>
+        <CardioSummary />
       </div>
 
       <div>

@@ -40,6 +40,8 @@ function Switch({ label, checked, onChange }: { label: string; checked: boolean;
 export function PreferencesCard() {
   const weightUnit = useSettingsStore((s) => s.weightUnit)
   const toggleWeightUnit = useSettingsStore((s) => s.toggleWeightUnit)
+  const distanceUnit = useSettingsStore((s) => s.distanceUnit)
+  const setDistanceUnit = useSettingsStore((s) => s.setDistanceUnit)
   const restDuration = useSettingsStore((s) => s.restDuration)
   const setRestDuration = useSettingsStore((s) => s.setRestDuration)
   const restTimerSound = useSettingsStore((s) => s.restTimerSound)
@@ -78,6 +80,16 @@ export function PreferencesCard() {
               onClick={() => weightUnit !== unit && toggleWeightUnit()}
               className={chipClass(weightUnit === unit, 'md')}
             >
+              {unit}
+            </button>
+          ))}
+        </div>
+      </Row>
+
+      <Row label="Distance">
+        <div className="flex gap-1.5">
+          {(['km', 'mi'] as const).map((unit) => (
+            <button key={unit} onClick={() => setDistanceUnit(unit)} className={chipClass(distanceUnit === unit, 'md')}>
               {unit}
             </button>
           ))}

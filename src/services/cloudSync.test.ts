@@ -45,7 +45,7 @@ const local = vi.hoisted(() => ({
   exercises: [] as unknown[],
   routines: [] as unknown[],
   sessions: [] as unknown[],
-  saved: { exercises: [] as unknown[], routines: [] as unknown[], templates: [] as unknown[], sessions: [] as unknown[] },
+  saved: { exercises: [] as unknown[], routines: [] as unknown[], templates: [] as unknown[], sessions: [] as unknown[], cardio: [] as unknown[] },
 }))
 
 vi.mock('./storage', () => ({
@@ -58,6 +58,7 @@ vi.mock('./storage', () => ({
     saveWorkoutTemplate: vi.fn(async (t: unknown) => void local.saved.templates.push(t)),
     saveWorkoutSession: vi.fn(async (s: unknown) => void local.saved.sessions.push(s)),
     saveBodyWeightLog: vi.fn(async () => {}),
+    saveCardioSession: vi.fn(async (c: unknown) => void local.saved.cardio.push(c)),
   },
 }))
 
@@ -65,6 +66,7 @@ import {
   syncUpsertRoutine,
   syncUpsertSession,
   syncUpsertWorkoutTemplate,
+  syncUpsertCardioSession,
   flushQueue,
   pullAndHydrate,
   deleteAllCloudData,
@@ -111,7 +113,7 @@ describe('cloudSync', () => {
     local.exercises = []
     local.routines = []
     local.sessions = []
-    local.saved = { exercises: [], routines: [], templates: [], sessions: [] }
+    local.saved = { exercises: [], routines: [], templates: [], sessions: [], cardio: [] }
   })
 
   describe('pushing to a migrated project', () => {
@@ -231,13 +233,32 @@ describe('cloudSync', () => {
     })
   })
 
+  it('round-trips a cardio session through its row shape', async () => {
+    const cardio = { id: 'c1', date: '2026-10-20', type: 'run' as const, durationSeconds: 1800, distanceKm: 5, avgHeartRate: 150, createdAt: 1, updatedAt: 2 }
+    await syncUpsertCardioSession('u1', cardio)
+
+    const row = cloud.upserts[0]!.row
+    expect(cloud.upserts[0]!.table).toBe('cardio_sessions')
+    expect(row).toMatchObject({ user_id: 'u1', duration_seconds: 1800, distance_km: 5, avg_heart_rate: 150, calories: null })
+
+    cloud.rows = { cardio_sessions: [row] }
+    await pullAndHydrate('u1')
+    expect(local.saved.cardio).toEqual([cardio])
+  })
+
+  it('leaves local cardio alone when the cardio table does not exist yet', async () => {
+    cloud.rows = { cardio_sessions: null }
+    await pullAndHydrate('u1')
+    expect(local.saved.cardio).toEqual([])
+  })
+
   it('deleteAllCloudData clears every table and drops queued retries', async () => {
     localStorage.setItem(QUEUE_KEY, JSON.stringify([{ type: 'upsertSession', payload: session }]))
 
     await deleteAllCloudData('u1')
 
     expect([...cloud.deletes].sort()).toEqual(
-      ['body_weight_logs', 'exercises', 'routines', 'workout_sessions', 'workout_templates'].sort()
+      ['body_weight_logs', 'cardio_sessions', 'exercises', 'routines', 'workout_sessions', 'workout_templates'].sort()
     )
     expect(queued()).toEqual([])
   })

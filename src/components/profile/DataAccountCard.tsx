@@ -85,7 +85,7 @@ export function DataAccountCard() {
       {confirmingDelete ? (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 space-y-3">
           <p className="text-sm text-ink">
-            This permanently deletes every exercise, routine, program, workout, and body weight entry on this device
+            This permanently deletes every exercise, routine, program, workout, cardio session, and body weight entry on this device
             {user ? ' and in your cloud account' : ''}. Export a backup first if you might want it back.
           </p>
           {cloudEnabled && !user && (
