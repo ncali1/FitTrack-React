@@ -7,6 +7,11 @@ import type { WeightUnit } from './units'
 const STANDARD_BAR_KG = 20
 const STANDARD_BAR_LB = 45
 
+/** The standard Olympic bar weight assumed for a unit (20kg / 45lb). */
+export function standardBarWeight(unit: WeightUnit): number {
+  return unit === 'kg' ? STANDARD_BAR_KG : STANDARD_BAR_LB
+}
+
 const PLATES_KG = [25, 20, 15, 10, 5, 2.5, 1.25]
 const PLATES_LB = [45, 35, 25, 10, 5, 2.5]
 
@@ -26,7 +31,7 @@ export interface PlateLoading {
  * weight (20kg / 45lb) and the plate set assumed available.
  */
 export function calculatePlateLoading(totalWeight: number, unit: WeightUnit): PlateLoading {
-  const barWeight = unit === 'kg' ? STANDARD_BAR_KG : STANDARD_BAR_LB
+  const barWeight = standardBarWeight(unit)
   const plates = unit === 'kg' ? PLATES_KG : PLATES_LB
 
   let remaining = Math.max(0, totalWeight - barWeight) / 2
