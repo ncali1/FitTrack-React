@@ -77,6 +77,17 @@
   --radius-xl2: 1.25rem;
 }
 
+/*
+ * Colours the 3D exercise preview reads at runtime with getComputedStyle — WebGL can't
+ * use classes. `static` makes Tailwind always emit these variables, since no class
+ * references them for its unused-variable pruning to see.
+ */
+@theme static {
+  --color-figure-body: #8a8e9a;
+  --color-figure-muscle: #f87171;
+  --color-figure-floor: #232532;
+}
+
 /* Character keyframes — used by the .animate-* utilities below */
 @keyframes pop-in {
   0% { opacity: 0; transform: scale(0.92) translateY(10px); }
