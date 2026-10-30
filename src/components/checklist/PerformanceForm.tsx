@@ -5,7 +5,9 @@ import type { ExercisePerformance, DifficultyLevel } from '@/types'
 import { useSettingsStore } from '@/stores/settings'
 import { fromKg, toKg } from '@/utils/units'
 import type { PerformanceSuggestion } from '@/utils/progressiveOverload'
+import { Flame } from 'lucide-react'
 import { calculatePlateLoading, formatPlateBreakdown } from '@/utils/plateCalculator'
+import { generateWarmupSets } from '@/utils/warmupSets'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 interface FormData {
@@ -44,6 +46,10 @@ const RPE_OPTIONS = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]
  * `suggestion` — from `suggestNextPerformance`, based on this exercise's history —
  * pre-fills the fields instead of leaving them blank, with its rationale shown above
  * the form.
+ *
+ * Once a working weight is entered, a collapsed "warm-up sets" ramp (with plate loading)
+ * can be opened under the weight field — guidance only, nothing is logged from it; a
+ * warm-up you want on record is still logged with the warm-up checkbox.
  */
 export function PerformanceForm({
   exerciseName,
@@ -98,6 +104,8 @@ export function PerformanceForm({
   })
   const [errors, setErrors] = useState<FormErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showWarmups, setShowWarmups] = useState(false)
+  const warmupSets = form.weight != null ? generateWarmupSets(form.weight, weightUnit) : []
 
   const validateField = (field: keyof FormData, data: FormData): string | undefined => {
     if (field === 'actualSets') {
@@ -239,6 +247,34 @@ export function PerformanceForm({
             <p className="text-xs text-ink-faint mt-1.5">
               {formatPlateBreakdown(calculatePlateLoading(form.weight, weightUnit), weightUnit)}
             </p>
+          )}
+          {!errors.weight && !form.isWarmup && warmupSets.length > 0 && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setShowWarmups((v) => !v)}
+                aria-expanded={showWarmups}
+                className="btn-ghost -ml-4 min-h-11"
+              >
+                <Flame size={16} strokeWidth={2} />
+                {showWarmups ? 'Hide warm-up sets' : 'Show warm-up sets'}
+              </button>
+              {showWarmups && (
+                <ol aria-label="Warm-up sets" className="mt-1 space-y-1.5 bg-canvas-800 border border-surface-border rounded-lg px-3 py-2.5">
+                  {warmupSets.map((set) => (
+                    <li key={set.weight} className="text-xs">
+                      <span className="text-ink font-semibold tabular-nums">
+                        {set.weight}
+                        {weightUnit} × {set.reps}
+                      </span>
+                      <span className="ml-2 text-ink-faint">
+                        {formatPlateBreakdown(calculatePlateLoading(set.weight, weightUnit), weightUnit)}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
           )}
         </div>
 

@@ -11,6 +11,7 @@ import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { WORKOUT_LIBRARY, type LibraryWorkout } from '@/data/workoutLibrary'
 import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { ensureExerciseFromLibrary, findExerciseForLibraryWorkout } from '@/utils/libraryExercise'
+import { ExercisePreview } from './ExercisePreview'
 import { InlineNameForm } from '@/components/profile/InlineNameForm'
 import { ExerciseForm } from '@/components/exercises/ExerciseForm'
 import type { Exercise, WorkoutTemplate } from '@/types'
@@ -309,6 +310,12 @@ export function WorkoutLibrary() {
                 {selectedDetail.description && (
                   <p className="text-sm text-ink-muted mb-4">{selectedDetail.description}</p>
                 )}
+                <div className="mb-4">
+                  <ExercisePreview
+                    targetMuscleGroups={selectedDetail.targetMuscleGroups}
+                    pattern={selectedDetail.catalog?.movementPattern}
+                  />
+                </div>
                 <div className="flex flex-wrap gap-1.5 mb-6">
                   {selectedDetail.targetMuscleGroups.map((group) => (
                     <span key={group} className={`badge ${muscleGroupStyle(group).badge}`}>

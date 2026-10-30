@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Shuffle } from 'lucide-react'
 import type { Exercise, ExercisePerformance, WorkoutSession } from '@/types'
 import { getExerciseHistory } from '@/utils/calculations'
 import { suggestNextPerformance } from '@/utils/progressiveOverload'
@@ -7,6 +8,7 @@ import { armRestAlert, disarmRestAlert, fireRestAlert } from '@/services/restAle
 import { useKeepAwake } from '@/hooks/useKeepAwake'
 import { useSettingsStore } from '@/stores/settings'
 import { PerformanceForm } from './PerformanceForm'
+import { SwapExerciseSheet } from './SwapExerciseSheet'
 
 type Phase = 'logging' | 'resting'
 
@@ -24,12 +26,16 @@ type Phase = 'logging' | 'resting'
  * derived from an end timestamp rather than decremented, so it stays correct if the app
  * is backgrounded or the phone locks mid-rest; the screen is kept awake for as long as
  * the session is on screen (unless turned off in Preferences).
+ *
+ * The exercise you're on can be swapped for a same-muscle alternative (machine taken,
+ * bench busy) without leaving the session; it takes over that slot, superset and all.
  */
 export function GuidedSession({
   groups,
   sessions,
   restDuration,
   onLogExercise,
+  onSwapExercise,
   onComplete,
 }: {
   groups: Exercise[][]
@@ -40,8 +46,11 @@ export function GuidedSession({
     exercise: Exercise,
     performance: Omit<ExercisePerformance, 'exerciseId' | 'timestamp'>
   ) => void | Promise<void>
+  /** Replaces `from` with `to` — the parent passes back `groups` with the swap applied. */
+  onSwapExercise: (from: Exercise, to: Exercise) => void | Promise<void>
   onComplete: () => void
 }) {
+  const [showSwap, setShowSwap] = useState(false)
   const [groupIndex, setGroupIndex] = useState(0)
   const [exerciseIndexInGroup, setExerciseIndexInGroup] = useState(0)
   const [phase, setPhase] = useState<Phase>('logging')
@@ -114,6 +123,12 @@ export function GuidedSession({
     }
   }
 
+  const handleSwap = async (replacement: Exercise) => {
+    if (!currentExercise) return
+    setShowSwap(false)
+    await onSwapExercise(currentExercise, replacement)
+  }
+
   const skipRest = () => {
     disarmRestAlert()
     setRestEndsAt(null)
@@ -166,10 +181,22 @@ export function GuidedSession({
         </div>
       ) : (
         <>
-          {currentGroup.length > 1 && (
+          <div className="flex items-center justify-between gap-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-accent-400">
-              Superset · {exerciseIndexInGroup + 1} of {currentGroup.length}
+              {currentGroup.length > 1 && `Superset · ${exerciseIndexInGroup + 1} of ${currentGroup.length}`}
             </div>
+            <button type="button" onClick={() => setShowSwap(true)} className="btn-secondary min-h-11">
+              <Shuffle size={16} strokeWidth={2} />
+              Swap exercise
+            </button>
+          </div>
+          {showSwap && (
+            <SwapExerciseSheet
+              exercise={currentExercise}
+              excludeNames={groups.flat().map((ex) => ex.name)}
+              onPick={handleSwap}
+              onCancel={() => setShowSwap(false)}
+            />
           )}
           <PerformanceForm
             key={currentExercise.id}

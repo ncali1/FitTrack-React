@@ -49,7 +49,8 @@ export default defineConfig({
         // offline — all real data already lives in IndexedDB. Fonts are bundled locally
         // via @fontsource-variable/inter (not loaded from a CDN), so unlike the Vue
         // project there's no Google Fonts runtimeCaching entry needed here.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        // glb: the 3D exercise preview's character model, so it works offline too.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,glb}'],
         cleanupOutdatedCaches: true,
       },
       devOptions: {
