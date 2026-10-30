@@ -1,5 +1,5 @@
 /**
- * Keyframes for the 3D exercise preview's mannequin: each movement pattern is two poses
+ * Keyframes for the 3D exercise preview's character: each movement pattern is two poses
  * (start and end of a rep) that the preview eases back and forth between. Kept as plain
  * data, free of three.js, so the animation itself can be unit-tested.
  *

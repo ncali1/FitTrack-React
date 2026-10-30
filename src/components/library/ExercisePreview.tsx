@@ -24,7 +24,7 @@ const ExercisePreview3D = lazy<ComponentType<Preview3DProps>>(() =>
 )
 
 /**
- * The best available exercise preview: a 3D mannequin looping the movement when the
+ * The best available exercise preview: a 3D character looping the movement when the
  * pattern has 3D keyframes and the device can draw WebGL, otherwise the animated 2D
  * MuscleBodyDiagram (also shown while the 3D chunk loads).
  */
