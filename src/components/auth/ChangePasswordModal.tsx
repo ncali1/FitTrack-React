@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import { SetNewPasswordForm } from './SetNewPasswordForm'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 /**
  * Modal allowing an already signed-in user to voluntarily change their password (as
@@ -7,6 +8,7 @@ import { SetNewPasswordForm } from './SetNewPasswordForm'
  * flow). Opened from TopBar's account menu.
  */
 export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  useBodyScrollLock()
   return (
     <div
       className="modal-overlay"

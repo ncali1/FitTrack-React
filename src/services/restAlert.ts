@@ -8,7 +8,7 @@ import { useSettingsStore } from '@/stores/settings'
  * session's own countdown. Which channel fires depends on where the app is when the
  * rest ends:
  *
- * - In the foreground: a short two-tone beep (if enabled in Settings) plus a haptic —
+ * - In the foreground: a short two-tone beep and a haptic (each if enabled in Preferences) —
  *   the native Haptics plugin on iOS/Android, `navigator.vibrate` on the web.
  * - In the background / screen locked: a system notification. JS timers are throttled
  *   or suspended there, so on native it's handed to the OS as a scheduled local
@@ -38,7 +38,7 @@ const isHidden = () => typeof document !== 'undefined' && document.visibilitySta
 /** Creates/resumes the audio context. Browsers only allow this close to a user gesture,
  *  which is why it's done up front when a rest starts rather than when it ends. */
 function primeAudio() {
-  if (!useSettingsStore.getState().restSoundEnabled) return
+  if (!useSettingsStore.getState().restTimerSound) return
   if (typeof window === 'undefined' || !('AudioContext' in window)) return
   try {
     audioCtx ??= new AudioContext()
@@ -49,7 +49,7 @@ function primeAudio() {
 }
 
 function playBeep() {
-  if (!audioCtx || !useSettingsStore.getState().restSoundEnabled) return
+  if (!audioCtx || !useSettingsStore.getState().restTimerSound) return
   try {
     if (audioCtx.state !== 'running') void audioCtx.resume().catch(() => {})
     const startAt = audioCtx.currentTime
@@ -74,6 +74,7 @@ function playBeep() {
 }
 
 function buzz() {
+  if (!useSettingsStore.getState().restTimerVibrate) return
   if (isNative()) {
     void Haptics.notification({ type: NotificationType.Success }).catch(() => {})
   } else if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {

@@ -19,7 +19,6 @@ import { TopBar } from './TopBar'
 import { BottomNav } from './BottomNav'
 import { useUIStore } from '@/stores/ui'
 import { useExercisesStore } from '@/stores/exercises'
-import { ExerciseList } from '@/components/exercises/ExerciseList'
 import { WeeklyGrid } from '@/components/routine/WeeklyGrid'
 
 vi.mock('@/services/storage', () => ({
@@ -31,6 +30,12 @@ vi.mock('@/services/storage', () => ({
     saveRoutine: vi.fn(async () => {}),
     getAllRoutines: vi.fn(async () => []),
     deleteRoutine: vi.fn(async () => {}),
+    saveWorkoutTemplate: vi.fn(async () => {}),
+    getAllWorkoutTemplates: vi.fn(async () => []),
+    saveCardioSession: vi.fn(async () => {}),
+    getAllCardioSessions: vi.fn(async () => []),
+    deleteCardioSession: vi.fn(async () => {}),
+    deleteWorkoutTemplate: vi.fn(async () => {}),
     saveWorkoutSession: vi.fn(async () => {}),
     getWorkoutSession: vi.fn(async () => undefined),
     getWorkoutSessionByDate: vi.fn(async () => undefined),
@@ -143,29 +148,6 @@ describe('Responsive Design', () => {
 
       await user.click(screen.getByText('Profile'))
       expect(useUIStore.getState().activeTab).toBe('profile')
-    })
-  })
-
-  describe('ExerciseList component – responsive grid', () => {
-    beforeEach(async () => {
-      // Seed one exercise so the grid branch renders instead of the empty-state branch,
-      // which doesn't contain grid classes.
-      await useExercisesStore.getState().createExercise('Push Up', 3, 10, ['Chest'])
-    })
-
-    it('uses single-column layout by default (grid-cols-1)', () => {
-      const { container } = render(<ExerciseList />)
-      expect(container.innerHTML).toContain('grid-cols-1')
-    })
-
-    it('uses md:grid-cols-2 for tablet-width viewports', () => {
-      const { container } = render(<ExerciseList />)
-      expect(hasResponsiveClass(container, 'md:grid-cols-2')).toBe(true)
-    })
-
-    it('uses lg:grid-cols-3 for desktop-width viewports', () => {
-      const { container } = render(<ExerciseList />)
-      expect(hasResponsiveClass(container, 'lg:grid-cols-3')).toBe(true)
     })
   })
 

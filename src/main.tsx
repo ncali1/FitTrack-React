@@ -13,6 +13,10 @@ createRoot(document.getElementById('root')!).render(
     <Toaster
       theme="dark"
       position="top-right"
+      // Clear of the status bar / Dynamic Island and the 64px top bar, which the default
+      // offset sits underneath on a notched phone.
+      offset={{ top: 'calc(env(safe-area-inset-top) + 76px)' }}
+      mobileOffset={{ top: 'calc(env(safe-area-inset-top) + 76px)' }}
       closeButton
       toastOptions={{
         classNames: {

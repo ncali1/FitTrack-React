@@ -11,6 +11,7 @@ import { RoutineBuilder } from './RoutineBuilder'
 import { useExercisesStore } from '@/stores/exercises'
 import { useRoutineStore } from '@/stores/routine'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
+import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 
 vi.mock('@/services/storage', () => ({
   storageService: {
@@ -21,6 +22,12 @@ vi.mock('@/services/storage', () => ({
     saveRoutine: vi.fn(async () => {}),
     getAllRoutines: vi.fn(async () => []),
     deleteRoutine: vi.fn(async () => {}),
+    saveWorkoutTemplate: vi.fn(async () => {}),
+    getAllWorkoutTemplates: vi.fn(async () => []),
+    saveCardioSession: vi.fn(async () => {}),
+    getAllCardioSessions: vi.fn(async () => []),
+    deleteCardioSession: vi.fn(async () => {}),
+    deleteWorkoutTemplate: vi.fn(async () => {}),
     saveWorkoutSession: vi.fn(async () => {}),
     getWorkoutSession: vi.fn(async () => undefined),
     getWorkoutSessionByDate: vi.fn(async () => undefined),
@@ -33,12 +40,14 @@ vi.mock('@/services/storage', () => ({
 const INITIAL_EXERCISES = useExercisesStore.getState()
 const INITIAL_ROUTINE = useRoutineStore.getState()
 const INITIAL_SESSIONS = useWorkoutSessionsStore.getState()
+const INITIAL_TEMPLATES = useWorkoutTemplatesStore.getState()
 
 describe('E2E: Routine Builder (plan builder overlay)', () => {
   beforeEach(() => {
     useExercisesStore.setState(INITIAL_EXERCISES, true)
     useRoutineStore.setState(INITIAL_ROUTINE, true)
     useWorkoutSessionsStore.setState(INITIAL_SESSIONS, true)
+    useWorkoutTemplatesStore.setState(INITIAL_TEMPLATES, true)
     useWorkoutSessionsStore.getState().invalidateCache()
   })
 
@@ -116,5 +125,46 @@ describe('E2E: Routine Builder (plan builder overlay)', () => {
 
     await user.click(screen.getByRole('button', { name: /close/i }))
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('assigns a routine to a day, shows it as a chip, and removes it again', async () => {
+    const user = userEvent.setup()
+    await useRoutineStore.getState().loadRoutines()
+    const template = await useWorkoutTemplatesStore.getState().createTemplate('Push Day', ['a', 'b'])
+    render(<RoutineBuilder onClose={() => {}} />)
+
+    const monday = screen.getByText('Monday').closest('.card') as HTMLElement
+    await user.click(within(monday).getByRole('button', { name: /add/i }))
+    await user.click(within(monday).getByRole('button', { name: 'Push Day' }))
+
+    await waitFor(() => {
+      expect(useRoutineStore.getState().activeRoutine()?.weeklyTemplates?.monday).toEqual([template.id])
+    })
+    expect(within(monday).getByText('Push Day · 2')).toBeTruthy()
+    expect(within(monday).queryByText('Rest day')).toBeNull()
+
+    await user.click(within(monday).getByRole('button', { name: 'Remove routine Push Day' }))
+
+    await waitFor(() => {
+      expect(useRoutineStore.getState().activeRoutine()?.weeklyTemplates?.monday).toEqual([])
+    })
+  })
+
+  it('assigns the same routine to more than one day', async () => {
+    const user = userEvent.setup()
+    await useRoutineStore.getState().loadRoutines()
+    const template = await useWorkoutTemplatesStore.getState().createTemplate('Push Day', ['a'])
+    render(<RoutineBuilder onClose={() => {}} />)
+
+    for (const day of ['Monday', 'Thursday']) {
+      const card = screen.getByText(day).closest('.card') as HTMLElement
+      await user.click(within(card).getByRole('button', { name: /add/i }))
+      await user.click(within(card).getByRole('button', { name: 'Push Day' }))
+      await user.click(within(card).getByRole('button', { name: /done/i }))
+    }
+
+    const weeklyTemplates = useRoutineStore.getState().activeRoutine()?.weeklyTemplates
+    expect(weeklyTemplates?.monday).toEqual([template.id])
+    expect(weeklyTemplates?.thursday).toEqual([template.id])
   })
 })

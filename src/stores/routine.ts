@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Routine, RoutineAssignment } from '@/types'
+import type { Routine, RoutineAssignment, WorkoutTemplate } from '@/types'
 import { storageService } from '@/services/storage'
 import { useWorkoutSessionsStore } from './workoutSessions'
 import { useAuthStore } from './auth'
@@ -50,8 +50,46 @@ export function selectActiveRoutine(routines: Routine[]): Routine | null {
   return routines.find((r) => r.isActive) ?? routines[0] ?? null
 }
 
-export function selectRoutineForDay(routines: Routine[], day: string): string[] {
+const resolvedCache = new WeakMap<Routine, { templates: WorkoutTemplate[]; resolved: Routine }>()
+
+/**
+ * Returns `routine` with each day's `weeklyAssignments` expanded to the full exercise
+ * list for that day: the exercises of every template assigned to it (in order), then the
+ * individually assigned exercises, without duplicates. Everything that reads a plan for
+ * display or stats should read the resolved form.
+ *
+ * Memoized per (routine, templates) pair so it stays referentially stable for the selector
+ * rules described above; a routine with no templates assigned is returned as-is.
+ */
+export function resolveRoutine(routine: Routine, templates: WorkoutTemplate[]): Routine {
+  const weeklyTemplates = routine.weeklyTemplates
+  if (!weeklyTemplates || Object.values(weeklyTemplates).every((ids) => ids.length === 0)) return routine
+
+  const cached = resolvedCache.get(routine)
+  if (cached && cached.templates === templates) return cached.resolved
+
+  const weeklyAssignments: RoutineAssignment = {}
+  for (const day of DAYS) {
+    const fromTemplates = (weeklyTemplates[day] ?? []).flatMap(
+      (templateId) => templates.find((t) => t.id === templateId)?.exerciseIds ?? []
+    )
+    weeklyAssignments[day] = [...new Set([...fromTemplates, ...(routine.weeklyAssignments[day] ?? [])])]
+  }
+
+  const resolved: Routine = { ...routine, weeklyAssignments }
+  resolvedCache.set(routine, { templates, resolved })
+  return resolved
+}
+
+/** The active routine in resolved form (see {@link resolveRoutine}), or null if there is none. */
+export function selectEffectiveRoutine(routines: Routine[], templates: WorkoutTemplate[]): Routine | null {
   const active = selectActiveRoutine(routines)
+  return active ? resolveRoutine(active, templates) : null
+}
+
+/** Exercise IDs for a weekday of the active routine; pass `templates` to include assigned templates. */
+export function selectRoutineForDay(routines: Routine[], day: string, templates: WorkoutTemplate[] = []): string[] {
+  const active = selectEffectiveRoutine(routines, templates)
   if (!active) return []
   return active.weeklyAssignments[day.toLowerCase()] || []
 }
@@ -67,6 +105,13 @@ interface RoutineState {
   allAssignments: () => RoutineAssignment
   assignExercise: (day: string, exerciseId: string) => Promise<void>
   removeExercise: (day: string, exerciseId: string) => Promise<void>
+  /** Assigns a workout template to a day of the active routine. */
+  assignTemplate: (day: string, templateId: string) => Promise<void>
+  removeTemplate: (day: string, templateId: string) => Promise<void>
+  /** Unassigns a template from every day of every routine (used when it is deleted). */
+  removeTemplateFromAll: (templateId: string) => Promise<void>
+  /** Copies a routine (inactive, named "<name> copy") and returns the copy. */
+  duplicateRoutine: (id: string) => Promise<Routine | null>
   createRoutine: (name: string) => Promise<Routine>
   renameRoutine: (id: string, name: string) => Promise<void>
   deleteRoutine: (id: string) => Promise<void>
@@ -98,7 +143,7 @@ export const useRoutineStore = create<RoutineState>()((set, get) => ({
       if (!target) {
         target = {
           id: crypto.randomUUID(),
-          name: 'My Routine',
+          name: 'My Program',
           isActive: true,
           weeklyAssignments: initializeAssignments(),
           createdAt: Date.now(),
@@ -162,6 +207,56 @@ export const useRoutineStore = create<RoutineState>()((set, get) => ({
     } finally {
       set({ loading: false })
     }
+  },
+
+  assignTemplate: async (day, templateId) => {
+    try {
+      await setDayTemplates(day, (ids) => (ids.includes(templateId) ? ids : [...ids, templateId]))
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to assign routine' })
+      throw err
+    }
+  },
+
+  removeTemplate: async (day, templateId) => {
+    try {
+      await setDayTemplates(day, (ids) => (ids.includes(templateId) ? ids.filter((id) => id !== templateId) : ids))
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to remove routine' })
+      throw err
+    }
+  },
+
+  removeTemplateFromAll: async (templateId) => {
+    for (const routine of get().routines) {
+      const weeklyTemplates = routine.weeklyTemplates
+      if (!weeklyTemplates || !Object.values(weeklyTemplates).some((ids) => ids.includes(templateId))) continue
+
+      await persist({
+        ...routine,
+        weeklyTemplates: Object.fromEntries(
+          Object.entries(weeklyTemplates).map(([day, ids]) => [day, ids.filter((id) => id !== templateId)])
+        ),
+        updatedAt: Date.now(),
+      })
+    }
+  },
+
+  duplicateRoutine: async (id) => {
+    const source = get().routines.find((r) => r.id === id)
+    if (!source) return null
+
+    const now = Date.now()
+    const copy: Routine = {
+      ...structuredClone(source),
+      id: crypto.randomUUID(),
+      name: `${source.name} copy`,
+      isActive: false,
+      createdAt: now,
+      updatedAt: now,
+    }
+    await persist(copy)
+    return copy
   },
 
   createRoutine: async (name) => {
@@ -306,7 +401,7 @@ export const useRoutineStore = create<RoutineState>()((set, get) => ({
             : [
                 {
                   id: crypto.randomUUID(),
-                  name: 'My Routine',
+                  name: 'My Program',
                   isActive: true,
                   weeklyAssignments: initializeAssignments(),
                   createdAt: Date.now(),
@@ -342,3 +437,34 @@ export const useRoutineStore = create<RoutineState>()((set, get) => ({
     }
   },
 }))
+
+/** Writes a new or updated routine to state, IndexedDB, and the cloud. */
+async function persist(updated: Routine) {
+  useRoutineStore.setState((state) => ({
+    routines: state.routines.some((r) => r.id === updated.id)
+      ? state.routines.map((r) => (r.id === updated.id ? updated : r))
+      : [...state.routines, updated],
+  }))
+  await storageService.saveRoutine(updated)
+  useWorkoutSessionsStore.getState().invalidateCache()
+
+  const authUser = useAuthStore.getState().user
+  if (authUser) syncUpsertRoutine(authUser.id, updated)
+}
+
+/** Applies `change` to the template IDs assigned to one day of the active routine. */
+async function setDayTemplates(day: string, change: (current: string[]) => string[]) {
+  const target = useRoutineStore.getState().activeRoutine()
+  if (!target) return
+
+  const dayLower = day.toLowerCase()
+  const current = target.weeklyTemplates?.[dayLower] ?? []
+  const next = change(current)
+  if (next === current) return
+
+  await persist({
+    ...target,
+    weeklyTemplates: { ...target.weeklyTemplates, [dayLower]: next },
+    updatedAt: Date.now(),
+  })
+}

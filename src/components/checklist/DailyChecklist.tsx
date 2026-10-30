@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { useRoutineStore, selectRoutineForDay } from '@/stores/routine'
+import { useRoutineStore } from '@/stores/routine'
+import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
+import { useActiveProgram } from '@/hooks/useActiveProgram'
 import { useExercisesStore } from '@/stores/exercises'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { useSettingsStore } from '@/stores/settings'
 import { useRestTimerStore } from '@/stores/restTimer'
 import { detectNewRecords } from '@/utils/personalRecords'
 import { formatWeight } from '@/utils/units'
-import { calculateSessionVolume, getExerciseHistory } from '@/utils/calculations'
+import { calculateSessionVolume, getExerciseHistory, getPlannedExerciseIds } from '@/utils/calculations'
 import { suggestNextPerformance } from '@/utils/progressiveOverload'
 import type { Exercise, ExercisePerformance } from '@/types'
 import { DaySelector } from './DaySelector'
@@ -16,20 +18,12 @@ import { PerformanceForm } from './PerformanceForm'
 import { PRToast } from './PRToast'
 import { GuidedSession } from './GuidedSession'
 import { SessionGroupPicker } from './SessionGroupPicker'
+import { RoutinePicker } from './RoutinePicker'
+import { CardioDayCard } from '@/components/cardio/CardioDayCard'
 
 interface SessionSummary {
   count: number
   volumeKg: number
-}
-
-const DAY_NAMES: Record<number, string> = {
-  0: 'sunday',
-  1: 'monday',
-  2: 'tuesday',
-  3: 'wednesday',
-  4: 'thursday',
-  5: 'friday',
-  6: 'saturday',
 }
 
 function todayString(): string {
@@ -37,15 +31,10 @@ function todayString(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** Returns the lowercase day-of-week name for a YYYY-MM-DD date string. */
-function dayOfWeekFromDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number)
-  const d = new Date(year!, month! - 1, day!)
-  return DAY_NAMES[d.getDay()] ?? 'monday'
-}
-
 /**
- * Shows the list of exercises assigned to a selected date as a checklist. Toggling an
+ * Shows the list of exercises planned for a selected date as a checklist — whatever the
+ * weekly program schedules for that weekday, unless the date was switched to a different
+ * routine (see RoutinePicker), in which case that routine's exercises. Toggling an
  * incomplete exercise opens the PerformanceForm so the user can log actual sets, reps,
  * weight, and difficulty. Toggling a completed exercise marks it incomplete. Changes are
  * persisted to the workout sessions store.
@@ -55,14 +44,17 @@ export function DailyChecklist() {
   // function references React/Zustand won't re-render on) and derive everything else
   // from them below, so the checklist re-renders whenever routines/exercises/sessions
   // actually change — including changes that don't happen to touch local component state.
-  const routines = useRoutineStore((s) => s.routines)
+  const activeProgram = useActiveProgram()
+  const templates = useWorkoutTemplatesStore((s) => s.templates)
   const loadRoutines = useRoutineStore((s) => s.loadRoutines)
+  const loadTemplates = useWorkoutTemplatesStore((s) => s.loadTemplates)
   const exercises = useExercisesStore((s) => s.exercises)
   const loadExercises = useExercisesStore((s) => s.loadExercises)
   const sessions = useWorkoutSessionsStore((s) => s.sessions)
   const createSession = useWorkoutSessionsStore((s) => s.createSession)
   const logPerformance = useWorkoutSessionsStore((s) => s.logPerformance)
   const loadSessions = useWorkoutSessionsStore((s) => s.loadSessions)
+  const setPlannedExercises = useWorkoutSessionsStore((s) => s.setPlannedExercises)
   const weightUnit = useSettingsStore((s) => s.weightUnit)
   const restDuration = useSettingsStore((s) => s.restDuration)
   const startRestTimer = useRestTimerStore((s) => s.start)
@@ -77,22 +69,24 @@ export function DailyChecklist() {
   const [groupPickerExercises, setGroupPickerExercises] = useState<Exercise[] | null>(null)
   const [guidedGroups, setGuidedGroups] = useState<Exercise[][] | null>(null)
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null)
+  const [showRoutinePicker, setShowRoutinePicker] = useState(false)
   /** Wall-clock start of the current guided session, for computing its total duration on completion. */
   const guidedSessionStartRef = useRef<number | null>(null)
 
   useEffect(() => {
-    Promise.all([loadRoutines(), loadExercises(), loadSessions()]).catch((err) => {
+    Promise.all([loadRoutines(), loadTemplates(), loadExercises(), loadSessions()]).catch((err) => {
       console.error('Failed to load data:', err)
       setError('Failed to load workout data. Please refresh the page.')
     })
-  }, [loadRoutines, loadExercises, loadSessions])
+  }, [loadRoutines, loadTemplates, loadExercises, loadSessions])
 
-  const exerciseIdsForDay = selectRoutineForDay(routines, dayOfWeekFromDate(selectedDate))
+  const currentSession = sessions.find((s) => s.date === selectedDate)
+  const isOverridden = currentSession?.plannedExerciseIds !== undefined
+  const exerciseIdsForDay = getPlannedExerciseIds(selectedDate, activeProgram, currentSession)
   const exercisesForDay = exerciseIdsForDay
     .map((id) => exercises.find((e) => e.id === id))
     .filter((ex): ex is Exercise => ex !== undefined)
 
-  const currentSession = sessions.find((s) => s.date === selectedDate)
   const completedExerciseIds = (currentSession?.exercises ?? []).filter((e) => e.completed).map((e) => e.exerciseId)
 
   /** All logged performance entries for the given exercise across all sessions. */
@@ -257,6 +251,30 @@ export function DailyChecklist() {
     setGuidedGroups(null)
   }
 
+  /** Swaps the selected date's plan for a routine's exercises, or adds them to what's there. */
+  const handlePickRoutine = async (templateId: string, mode: 'replace' | 'add') => {
+    const template = templates.find((t) => t.id === templateId)
+    if (!template) return
+    try {
+      const exerciseIds =
+        mode === 'add' ? [...new Set([...exerciseIdsForDay, ...template.exerciseIds])] : template.exerciseIds
+      await setPlannedExercises(selectedDate, exerciseIds)
+      setShowRoutinePicker(false)
+    } catch (err) {
+      console.error('Failed to switch routine:', err)
+      setError('Failed to switch routine. Please try again.')
+    }
+  }
+
+  const handleRestoreSchedule = async () => {
+    try {
+      await setPlannedExercises(selectedDate, undefined)
+    } catch (err) {
+      console.error('Failed to restore the scheduled plan:', err)
+      setError('Failed to restore the scheduled plan. Please try again.')
+    }
+  }
+
   const handleDateChange = (date: string) => {
     setSelectedDate(date)
     setActiveExercise(null)
@@ -345,6 +363,28 @@ export function DailyChecklist() {
                 </button>
               )}
             </>
+          )}
+
+          <div className="flex flex-col items-center gap-1">
+            <button className="btn-ghost text-xs" onClick={() => setShowRoutinePicker(true)}>
+              {exercisesForDay.length === 0 ? 'Do a routine' : 'Do a different routine'}
+            </button>
+            {isOverridden && (
+              <button className="btn-ghost text-xs" onClick={handleRestoreSchedule}>
+                Back to the scheduled plan
+              </button>
+            )}
+          </div>
+
+          <CardioDayCard date={selectedDate} />
+
+          {showRoutinePicker && (
+            <RoutinePicker
+              templates={templates}
+              canAdd={exercisesForDay.length > 0}
+              onPick={handlePickRoutine}
+              onCancel={() => setShowRoutinePicker(false)}
+            />
           )}
 
           {activeExercise && (

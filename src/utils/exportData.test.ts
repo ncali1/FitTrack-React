@@ -9,6 +9,11 @@ vi.mock('@/services/storage', () => ({
     getAllExercises: vi.fn(async () => []),
     saveRoutine: vi.fn(async () => {}),
     getAllRoutines: vi.fn(async () => []),
+    saveWorkoutTemplate: vi.fn(async () => {}),
+    getAllWorkoutTemplates: vi.fn(async () => []),
+    saveCardioSession: vi.fn(async () => {}),
+    getAllCardioSessions: vi.fn(async () => []),
+    deleteCardioSession: vi.fn(async () => {}),
     saveWorkoutSession: vi.fn(async () => {}),
     getAllWorkoutSessions: vi.fn(async () => []),
     saveBodyWeightLog: vi.fn(async () => {}),
@@ -40,8 +45,10 @@ describe('exportData', () => {
     vi.clearAllMocks()
     mockedStorage.getAllExercises.mockResolvedValue([])
     mockedStorage.getAllRoutines.mockResolvedValue([])
+    mockedStorage.getAllWorkoutTemplates.mockResolvedValue([])
     mockedStorage.getAllWorkoutSessions.mockResolvedValue([])
     mockedStorage.getAllBodyWeightLogs.mockResolvedValue([])
+    mockedStorage.getAllCardioSessions.mockResolvedValue([])
   })
 
   describe('buildBackup', () => {
@@ -180,7 +187,41 @@ describe('exportData', () => {
       expect(mockedStorage.saveWorkoutSession).toHaveBeenCalledWith(session)
       expect(mockedStorage.saveBodyWeightLog).toHaveBeenCalledWith(log)
 
-      expect(counts).toEqual({ exercises: 1, routines: 1, workoutSessions: 1, bodyWeightLogs: 1 })
+      expect(counts).toEqual({ exercises: 1, routines: 1, workoutTemplates: 0, workoutSessions: 1, bodyWeightLogs: 1, cardioSessions: 0 })
+    })
+
+    it('restores workout templates when the backup has them', async () => {
+      const template = { id: 't1', name: 'Push Day', exerciseIds: ['ex1'], createdAt: 1, updatedAt: 1 }
+
+      const counts = await restoreBackup({
+        version: BACKUP_VERSION,
+        exportedAt: new Date().toISOString(),
+        exercises: [],
+        routines: [],
+        workoutTemplates: [template],
+        workoutSessions: [],
+        bodyWeightLogs: [],
+      })
+
+      expect(mockedStorage.saveWorkoutTemplate).toHaveBeenCalledWith(template)
+      expect(counts.workoutTemplates).toBe(1)
+    })
+
+    it('restores cardio sessions when the backup has them', async () => {
+      const cardio = { id: 'c1', date: '2026-10-20', type: 'run' as const, durationSeconds: 1800, createdAt: 1, updatedAt: 1 }
+
+      const counts = await restoreBackup({
+        version: BACKUP_VERSION,
+        exportedAt: new Date().toISOString(),
+        exercises: [],
+        routines: [],
+        workoutSessions: [],
+        bodyWeightLogs: [],
+        cardioSessions: [cardio],
+      })
+
+      expect(mockedStorage.saveCardioSession).toHaveBeenCalledWith(cardio)
+      expect(counts.cardioSessions).toBe(1)
     })
 
     it('returns all-zero counts and writes nothing for an empty backup', async () => {
@@ -193,7 +234,7 @@ describe('exportData', () => {
         bodyWeightLogs: [],
       })
 
-      expect(counts).toEqual({ exercises: 0, routines: 0, workoutSessions: 0, bodyWeightLogs: 0 })
+      expect(counts).toEqual({ exercises: 0, routines: 0, workoutTemplates: 0, workoutSessions: 0, bodyWeightLogs: 0, cardioSessions: 0 })
       expect(mockedStorage.saveExercise).not.toHaveBeenCalled()
       expect(mockedStorage.saveRoutine).not.toHaveBeenCalled()
       expect(mockedStorage.saveWorkoutSession).not.toHaveBeenCalled()

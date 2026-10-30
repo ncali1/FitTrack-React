@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRestTimerStore } from '@/stores/restTimer'
 import { useKeepAwake } from '@/hooks/useKeepAwake'
+import { useSettingsStore } from '@/stores/settings'
 
 const RADIUS = 24
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
@@ -21,7 +22,7 @@ export function RestTimer() {
 
   const [entered, setEntered] = useState(false)
 
-  useKeepAwake()
+  useKeepAwake(useSettingsStore((s) => s.keepScreenAwake))
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setEntered(true))

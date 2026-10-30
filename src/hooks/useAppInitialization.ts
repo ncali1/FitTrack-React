@@ -1,8 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
 import { useExercisesStore } from '@/stores/exercises'
 import { useRoutineStore } from '@/stores/routine'
+import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { useBodyWeightStore } from '@/stores/bodyWeight'
+import { useCardioStore } from '@/stores/cardio'
 import { storageService, StorageQuotaError } from '@/services/storage'
 
 /**
@@ -15,8 +17,10 @@ import { storageService, StorageQuotaError } from '@/services/storage'
 export function useAppInitialization() {
   const loadExercises = useExercisesStore((s) => s.loadExercises)
   const loadRoutines = useRoutineStore((s) => s.loadRoutines)
+  const loadTemplates = useWorkoutTemplatesStore((s) => s.loadTemplates)
   const loadSessions = useWorkoutSessionsStore((s) => s.loadSessions)
   const loadBodyWeightLogs = useBodyWeightStore((s) => s.loadLogs)
+  const loadCardio = useCardioStore((s) => s.loadSessions)
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +53,13 @@ export function useAppInitialization() {
     }
 
     try {
+      await loadTemplates()
+    } catch (err) {
+      if (err instanceof StorageQuotaError) setError(err.message)
+      else console.error('Failed to load workout templates, continuing with empty state:', err)
+    }
+
+    try {
       await loadSessions()
     } catch (err) {
       if (err instanceof StorageQuotaError) setError(err.message)
@@ -62,9 +73,16 @@ export function useAppInitialization() {
       else console.error('Failed to load body weight logs, continuing with empty state:', err)
     }
 
+    try {
+      await loadCardio()
+    } catch (err) {
+      if (err instanceof StorageQuotaError) setError(err.message)
+      else console.error('Failed to load cardio sessions, continuing with empty state:', err)
+    }
+
     setIsInitialized(true)
     setIsLoading(false)
-  }, [loadExercises, loadRoutines, loadSessions, loadBodyWeightLogs])
+  }, [loadExercises, loadRoutines, loadTemplates, loadSessions, loadBodyWeightLogs, loadCardio])
 
   const resetApp = useCallback(async () => {
     setIsLoading(true)
@@ -73,8 +91,10 @@ export function useAppInitialization() {
       await storageService.clearAllData()
       useExercisesStore.setState({ exercises: [], loading: false, error: null })
       useRoutineStore.setState({ routines: [], loading: false, error: null })
+      useWorkoutTemplatesStore.setState({ templates: [], error: null })
       useWorkoutSessionsStore.setState({ sessions: [], currentSession: null, loading: false, error: null })
       useBodyWeightStore.setState({ logs: [], loading: false, error: null })
+      useCardioStore.setState({ sessions: [], error: null })
 
       isInitializedRef.current = false
       setIsInitialized(false)

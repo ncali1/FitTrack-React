@@ -10,6 +10,7 @@ import userEvent from '@testing-library/user-event'
 import { WorkoutLibrary } from './WorkoutLibrary'
 import { useExercisesStore } from '@/stores/exercises'
 import { useRoutineStore } from '@/stores/routine'
+import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { getDayOfWeek } from '@/utils/calculations'
 
 vi.mock('@/services/storage', () => ({
@@ -21,6 +22,12 @@ vi.mock('@/services/storage', () => ({
     saveRoutine: vi.fn(async () => {}),
     getAllRoutines: vi.fn(async () => []),
     deleteRoutine: vi.fn(async () => {}),
+    saveWorkoutTemplate: vi.fn(async () => {}),
+    getAllWorkoutTemplates: vi.fn(async () => []),
+    saveCardioSession: vi.fn(async () => {}),
+    getAllCardioSessions: vi.fn(async () => []),
+    deleteCardioSession: vi.fn(async () => {}),
+    deleteWorkoutTemplate: vi.fn(async () => {}),
     saveWorkoutSession: vi.fn(async () => {}),
     getWorkoutSession: vi.fn(async () => undefined),
     getWorkoutSessionByDate: vi.fn(async () => undefined),
@@ -41,6 +48,7 @@ const mockedToast = vi.mocked(toast)
 
 const INITIAL_EXERCISES = useExercisesStore.getState()
 const INITIAL_ROUTINES = useRoutineStore.getState()
+const INITIAL_TEMPLATES = useWorkoutTemplatesStore.getState()
 
 const TODAY = getDayOfWeek(
   (() => {
@@ -53,6 +61,7 @@ describe('E2E: Workout Library', () => {
   beforeEach(() => {
     useExercisesStore.setState(INITIAL_EXERCISES, true)
     useRoutineStore.setState(INITIAL_ROUTINES, true)
+    useWorkoutTemplatesStore.setState(INITIAL_TEMPLATES, true)
     vi.clearAllMocks()
   })
 
@@ -216,5 +225,176 @@ describe('E2E: Workout Library', () => {
       expect(mockedToast).toHaveBeenCalledWith(expect.stringMatching(/already in today/i))
     })
     expect(mockedStorage.saveRoutine).not.toHaveBeenCalled()
+  })
+
+  describe('"Add to routine"', () => {
+    const openPicker = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole('heading', { level: 3, name: 'Barbell Bench Press' }))
+      await user.click(screen.getByRole('button', { name: 'Add to routine' }))
+    }
+
+    it('adds the exercise to an existing routine, creating it in the user\'s library first', async () => {
+      const user = userEvent.setup()
+      const routine = await useWorkoutTemplatesStore.getState().createTemplate('Push Day', ['other'])
+      render(<WorkoutLibrary />)
+
+      await openPicker(user)
+      await user.click(screen.getByRole('button', { name: 'Add to Push Day' }))
+
+      await waitFor(() => {
+        expect(useWorkoutTemplatesStore.getState().templates[0]?.exerciseIds).toHaveLength(2)
+      })
+      const bench = useExercisesStore.getState().exercises.find((e) => e.name === 'Barbell Bench Press')
+      expect(bench).toMatchObject({ targetSets: 4, targetReps: 8 })
+      expect(useWorkoutTemplatesStore.getState().templates[0]).toMatchObject({
+        id: routine.id,
+        exerciseIds: ['other', bench!.id],
+      })
+      expect(mockedToast.success).toHaveBeenCalledWith('Added to Push Day')
+      expect(screen.queryByRole('heading', { level: 2, name: 'Barbell Bench Press' })).toBeNull()
+      // Adding to a routine leaves today's plan alone.
+      expect(mockedStorage.saveRoutine).not.toHaveBeenCalled()
+    })
+
+    it('creates a new routine containing the exercise', async () => {
+      const user = userEvent.setup()
+      render(<WorkoutLibrary />)
+
+      await openPicker(user)
+      await user.click(screen.getByRole('button', { name: '+ New routine' }))
+      await user.type(screen.getByLabelText('Routine name'), 'Chest Day')
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(useWorkoutTemplatesStore.getState().templates).toHaveLength(1)
+      })
+      const bench = useExercisesStore.getState().exercises.find((e) => e.name === 'Barbell Bench Press')
+      expect(useWorkoutTemplatesStore.getState().templates[0]).toMatchObject({
+        name: 'Chest Day',
+        exerciseIds: [bench!.id],
+      })
+    })
+
+    it('marks a routine that already contains the exercise instead of adding it twice', async () => {
+      const user = userEvent.setup()
+      const bench = await useExercisesStore.getState().createExercise('barbell bench press', 3, 10, ['Chest'])
+      await useWorkoutTemplatesStore.getState().createTemplate('Push Day', [bench.id])
+      render(<WorkoutLibrary />)
+
+      await openPicker(user)
+
+      expect(screen.getByRole('button', { name: 'Already in Push Day' })).toBeDisabled()
+      expect(screen.queryByRole('button', { name: 'Add to Push Day' })).toBeNull()
+    })
+
+    it('"Cancel" returns to the main actions without changing anything', async () => {
+      const user = userEvent.setup()
+      await useWorkoutTemplatesStore.getState().createTemplate('Push Day')
+      render(<WorkoutLibrary />)
+
+      await openPicker(user)
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(screen.getByRole('button', { name: /add to today/i })).toBeTruthy()
+      expect(useWorkoutTemplatesStore.getState().templates[0]?.exerciseIds).toEqual([])
+      expect(mockedStorage.saveExercise).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('your own exercises in the same list', () => {
+    it('lists a custom exercise alongside the catalog, marked Custom', async () => {
+      await useExercisesStore.getState().createExercise('Landmine Press', 3, 10, ['Shoulders'])
+      render(<WorkoutLibrary />)
+
+      const row = screen.getByRole('heading', { level: 3, name: 'Landmine Press' }).closest('[role="button"]') as HTMLElement
+      expect(within(row).getByText('Custom')).toBeTruthy()
+      // A catalog entry has no Custom badge.
+      const catalogRow = screen.getByRole('heading', { level: 3, name: 'Overhead Press' }).closest('[role="button"]') as HTMLElement
+      expect(within(catalogRow).queryByText('Custom')).toBeNull()
+    })
+
+    it('shows a catalog entry only once after the user has their own copy of it, with their targets', async () => {
+      await useExercisesStore.getState().createExercise('barbell bench press', 5, 5, ['Chest'])
+      render(<WorkoutLibrary />)
+
+      const rows = screen.getAllByRole('heading', { level: 3, name: /^barbell bench press$/i })
+      expect(rows).toHaveLength(1)
+      expect(within(rows[0]!.closest('[role="button"]') as HTMLElement).getByText(/^5×5/)).toBeTruthy()
+    })
+
+    it('includes custom exercises in search and muscle filters', async () => {
+      const user = userEvent.setup()
+      await useExercisesStore.getState().createExercise('Landmine Press', 3, 10, ['Shoulders'])
+      render(<WorkoutLibrary />)
+
+      await user.click(screen.getByRole('button', { name: 'Chest' }))
+      expect(screen.queryByRole('heading', { level: 3, name: 'Landmine Press' })).toBeNull()
+      await user.click(screen.getByRole('button', { name: 'Shoulders' }))
+      expect(screen.getByRole('heading', { level: 3, name: 'Landmine Press' })).toBeTruthy()
+
+      await user.type(screen.getByLabelText('Search workout library'), 'landmine')
+      expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(1)
+    })
+
+    it('tints each exercise icon by its main muscle group', () => {
+      render(<WorkoutLibrary />)
+
+      const iconTile = (name: string) =>
+        (screen.getByRole('heading', { level: 3, name }).closest('[role="button"]') as HTMLElement).firstElementChild!
+      expect(iconTile('Barbell Curl').className).toContain('pink')
+      expect(iconTile('Back Squat').className).toContain('emerald')
+      expect(iconTile('Barbell Curl').className).not.toBe(iconTile('Back Squat').className)
+    })
+
+    it('"Add exercise" creates a custom exercise that then appears in the list', async () => {
+      const user = userEvent.setup()
+      render(<WorkoutLibrary />)
+
+      await user.click(screen.getByRole('button', { name: /add exercise/i }))
+      await user.type(screen.getByLabelText(/name/i), 'Landmine Press')
+      await user.click(screen.getByRole('checkbox', { name: 'Shoulders' }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      expect(await screen.findByRole('heading', { level: 3, name: 'Landmine Press' })).toBeTruthy()
+      expect(useExercisesStore.getState().exercises.map((e) => e.name)).toEqual(['Landmine Press'])
+    })
+
+    it('offers Edit and Delete for a custom exercise, but not for a catalog entry', async () => {
+      const user = userEvent.setup()
+      await useExercisesStore.getState().createExercise('Landmine Press', 3, 10, ['Shoulders'])
+      render(<WorkoutLibrary />)
+
+      await user.click(screen.getByRole('heading', { level: 3, name: 'Overhead Press' }))
+      expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
+      await user.click(screen.getByRole('button', { name: 'Close' }))
+
+      await user.click(screen.getByRole('heading', { level: 3, name: 'Landmine Press' }))
+      expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
+
+      vi.stubGlobal('confirm', vi.fn(() => true))
+      await user.click(screen.getByRole('button', { name: 'Delete' }))
+      vi.unstubAllGlobals()
+
+      await waitFor(() => {
+        expect(useExercisesStore.getState().exercises).toEqual([])
+      })
+      expect(screen.queryByRole('heading', { level: 3, name: 'Landmine Press' })).toBeNull()
+    })
+
+    it('adds a custom exercise to a routine without creating anything new', async () => {
+      const user = userEvent.setup()
+      const custom = await useExercisesStore.getState().createExercise('Landmine Press', 3, 10, ['Shoulders'])
+      await useWorkoutTemplatesStore.getState().createTemplate('Push Day')
+      render(<WorkoutLibrary />)
+
+      await user.click(screen.getByRole('heading', { level: 3, name: 'Landmine Press' }))
+      await user.click(screen.getByRole('button', { name: 'Add to routine' }))
+      await user.click(screen.getByRole('button', { name: 'Add to Push Day' }))
+
+      await waitFor(() => {
+        expect(useWorkoutTemplatesStore.getState().templates[0]?.exerciseIds).toEqual([custom.id])
+      })
+      expect(useExercisesStore.getState().exercises).toHaveLength(1)
+    })
   })
 })

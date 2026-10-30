@@ -6,6 +6,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { fromKg, toKg } from '@/utils/units'
 import type { PerformanceSuggestion } from '@/utils/progressiveOverload'
 import { calculatePlateLoading, formatPlateBreakdown } from '@/utils/plateCalculator'
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 
 interface FormData {
   actualSets: number | null
@@ -69,6 +70,7 @@ export function PerformanceForm({
   inline?: boolean
   submitLabel?: string
 }) {
+  useBodyScrollLock(!inline)
   const weightUnit = useSettingsStore((s) => s.weightUnit)
 
   const [form, setForm] = useState<FormData>(() => {

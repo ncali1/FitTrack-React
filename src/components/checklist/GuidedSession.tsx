@@ -5,6 +5,7 @@ import { suggestNextPerformance } from '@/utils/progressiveOverload'
 import { secondsUntil } from '@/stores/restTimer'
 import { armRestAlert, disarmRestAlert, fireRestAlert } from '@/services/restAlert'
 import { useKeepAwake } from '@/hooks/useKeepAwake'
+import { useSettingsStore } from '@/stores/settings'
 import { PerformanceForm } from './PerformanceForm'
 
 type Phase = 'logging' | 'resting'
@@ -22,7 +23,7 @@ type Phase = 'logging' | 'resting'
  * full-screen vs. one corner-widget presentation. Like that store, the countdown is
  * derived from an end timestamp rather than decremented, so it stays correct if the app
  * is backgrounded or the phone locks mid-rest; the screen is kept awake for as long as
- * the session is on screen.
+ * the session is on screen (unless turned off in Preferences).
  */
 export function GuidedSession({
   groups,
@@ -48,7 +49,7 @@ export function GuidedSession({
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null)
   const [restRemaining, setRestRemaining] = useState(restDuration)
 
-  useKeepAwake()
+  useKeepAwake(useSettingsStore((s) => s.keepScreenAwake))
 
   const totalExercises = groups.reduce((sum, g) => sum + g.length, 0)
   const currentGroup = groups[groupIndex] ?? []

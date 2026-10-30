@@ -58,8 +58,8 @@ export function calculateWeeklySummary(
 
   DAYS.forEach((day, i) => {
     const dateStr = addDays(weekStartStr, i)
-    const assigned = (routine.weeklyAssignments[day] ?? []).length
     const session = sessions.find((s) => s.date === dateStr)
+    const assigned = getPlannedExerciseIds(dateStr, routine, session).length
     const completed = session ? session.exercises.filter((e) => e.completed).length : 0
 
     dailyBreakdown[day] = { assigned, completed }
@@ -207,13 +207,13 @@ export function calculateStreak(routine: Routine | null, sessions: WorkoutSessio
   let cursor = todayStr
   // A day per iteration, capped generously — no realistic streak runs anywhere near this.
   for (let i = 0; i < 3650; i++) {
-    const assigned = routine.weeklyAssignments[getDayOfWeek(cursor)] ?? []
+    const session = sessions.find((s) => s.date === cursor)
+    const assigned = getPlannedExerciseIds(cursor, routine, session)
     if (assigned.length === 0) {
       cursor = addDays(cursor, -1)
       continue
     }
 
-    const session = sessions.find((s) => s.date === cursor)
     const allCompleted = assigned.every((id) => session?.exercises.some((e) => e.exerciseId === id && e.completed))
 
     if (allCompleted) {
@@ -242,6 +242,20 @@ export function getExercisesForDate(dateStr: string, routine: Routine): string[]
   return routine.weeklyAssignments[day] ?? []
 }
 
+/**
+ * Returns the exercise IDs planned for a specific date: the session's own
+ * `plannedExerciseIds` when that date was overridden (a different routine was done that
+ * day), otherwise whatever the routine schedules for its weekday. Pass the routine in
+ * resolved form (see `resolveRoutine`) so assigned templates are included.
+ */
+export function getPlannedExerciseIds(
+  dateStr: string,
+  routine: Routine | null,
+  session: WorkoutSession | undefined
+): string[] {
+  return session?.plannedExerciseIds ?? (routine ? getExercisesForDate(dateStr, routine) : [])
+}
+
 /** Finds the workout session matching the given date string, or undefined. */
 export function getSessionForDate(dateStr: string, sessions: WorkoutSession[]): WorkoutSession | undefined {
   return sessions.find((s) => s.date === dateStr)
@@ -254,8 +268,8 @@ export function mergeRoutineWithSession(
   sessions: WorkoutSession[],
   exercises: Exercise[]
 ): Array<{ exercise: Exercise; performance: ExercisePerformance | undefined; completed: boolean }> {
-  const exerciseIds = getExercisesForDate(dateStr, routine)
   const session = getSessionForDate(dateStr, sessions)
+  const exerciseIds = getPlannedExerciseIds(dateStr, routine, session)
 
   return exerciseIds
     .map((id) => {

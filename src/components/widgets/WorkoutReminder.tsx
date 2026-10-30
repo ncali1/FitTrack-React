@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useRoutineStore, selectActiveRoutine } from '@/stores/routine'
+import { useRoutineStore, selectEffectiveRoutine } from '@/stores/routine'
+import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { useSettingsStore } from '@/stores/settings'
 import { useRestTimerStore } from '@/stores/restTimer'
@@ -58,7 +59,10 @@ export function WorkoutReminder() {
 
     const today = todayString()
     if (alreadyShownToday(today)) return
-    const routine = selectActiveRoutine(useRoutineStore.getState().routines)
+    const routine = selectEffectiveRoutine(
+      useRoutineStore.getState().routines,
+      useWorkoutTemplatesStore.getState().templates
+    )
     const sessions = useWorkoutSessionsStore.getState().sessions
     if (!shouldNudgeToday(routine, sessions, today)) return
 

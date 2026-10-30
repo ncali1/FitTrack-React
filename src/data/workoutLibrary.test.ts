@@ -21,6 +21,18 @@ describe('WORKOUT_LIBRARY', () => {
     expect(WORKOUT_LIBRARY.length).toBeGreaterThan(0)
   })
 
+  it('has unique names, ignoring case, so library entries map to one exercise each', () => {
+    const names = WORKOUT_LIBRARY.map((w) => w.name.toLowerCase())
+    expect(new Set(names).size).toBe(names.length)
+  })
+
+  it('offers several exercises for every muscle group', () => {
+    for (const group of MUSCLE_GROUP_OPTIONS.filter((g) => g !== 'Legs')) {
+      const count = WORKOUT_LIBRARY.filter((w) => w.targetMuscleGroups.includes(group)).length
+      expect(count, group).toBeGreaterThanOrEqual(3)
+    }
+  })
+
   it('has unique ids', () => {
     const ids = WORKOUT_LIBRARY.map((w) => w.id)
     expect(new Set(ids).size).toBe(ids.length)

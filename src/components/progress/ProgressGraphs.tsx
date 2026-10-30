@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useUIStore } from '@/stores/ui'
 import { useExercisesStore } from '@/stores/exercises'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
-import { useRoutineStore, selectActiveRoutine } from '@/stores/routine'
+import { useActiveProgram } from '@/hooks/useActiveProgram'
 import { useBodyWeightStore } from '@/stores/bodyWeight'
 import { useSettingsStore } from '@/stores/settings'
 import { calculatePersonalRecord } from '@/utils/personalRecords'
@@ -18,6 +18,7 @@ import { CompletionRateChart } from './CompletionRateChart'
 import { ExerciseHistory } from './ExerciseHistory'
 import { BodyWeightChart } from '@/components/bodyweight/BodyWeightChart'
 import { BodyWeightLogForm } from '@/components/bodyweight/BodyWeightLogForm'
+import { CardioSummary } from '@/components/cardio/CardioSummary'
 
 function todayString(): string {
   const d = new Date()
@@ -42,8 +43,7 @@ export function ProgressGraphs() {
   const timeRange = useUIStore((s) => s.timeRange)
 
   const exercises = useExercisesStore((s) => s.exercises)
-  const routines = useRoutineStore((s) => s.routines)
-  const activeRoutine = selectActiveRoutine(routines)
+  const activeRoutine = useActiveProgram()
   const weightUnit = useSettingsStore((s) => s.weightUnit)
   const sessions = useWorkoutSessionsStore((s) => s.sessions)
   const bodyWeightLogs = useBodyWeightStore((s) => s.logs)
@@ -132,6 +132,11 @@ export function ProgressGraphs() {
           )}
         </div>
         <WeeklyBars breakdown={weekSummary?.dailyBreakdown ?? {}} today={getDayOfWeek(today)} />
+      </div>
+
+      <div>
+        <h6 className="text-ink-muted text-sm mb-2.5">Cardio</h6>
+        <CardioSummary />
       </div>
 
       <div>

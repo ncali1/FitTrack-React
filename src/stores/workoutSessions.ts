@@ -32,6 +32,11 @@ interface WorkoutSessionsState {
     exerciseId: string,
     performance: Omit<ExercisePerformance, 'exerciseId' | 'timestamp'>
   ) => Promise<void>
+  /**
+   * Overrides the exercises planned for one date (creating its session if needed), or
+   * clears the override when `exerciseIds` is undefined so the weekly program applies again.
+   */
+  setPlannedExercises: (date: string, exerciseIds: string[] | undefined) => Promise<void>
   loadSessions: () => Promise<void>
 
   getCachedWeeklySummary: (weekStartStr: string, routine: Routine) => WeeklySummary
@@ -107,6 +112,8 @@ export const useWorkoutSessionsStore = create<WorkoutSessionsState>()((set, get)
         date: updates.date ?? existing.date,
         exercises: updates.exercises ?? existing.exercises,
         durationSeconds: 'durationSeconds' in updates ? updates.durationSeconds : existing.durationSeconds,
+        plannedExerciseIds:
+          'plannedExerciseIds' in updates ? updates.plannedExerciseIds : existing.plannedExerciseIds,
         createdAt: existing.createdAt,
         updatedAt: Date.now(),
       }
@@ -162,6 +169,13 @@ export const useWorkoutSessionsStore = create<WorkoutSessionsState>()((set, get)
     } finally {
       set({ loading: false })
     }
+  },
+
+  setPlannedExercises: async (date, exerciseIds) => {
+    const existing = get().sessions.find((s) => s.date === date)
+    if (!existing && exerciseIds === undefined) return
+    const session = existing ?? (await get().createSession(date))
+    await get().updateSession(session.id, { plannedExerciseIds: exerciseIds })
   },
 
   loadSessions: async () => {
