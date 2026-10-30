@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Exercise, ExercisePerformance, WorkoutSession } from '@/types'
 import { getExerciseHistory } from '@/utils/calculations'
 import { suggestNextPerformance } from '@/utils/progressiveOverload'
-import { PerformanceForm } from './PerformanceForm'
+import { secondsUntil } from '@/stores/restTimer'
+import { armRestAlert, disarmRestAlert, fireRestAlert } from '@/services/restAlert'
+import { useKeepAwake } from '@/hooks/useKeepAwake'
 import { useSettingsStore } from '@/stores/settings'
-import { useWakeLock } from '@/hooks/useWakeLock'
-import { primeRestAlert, signalRestOver } from '@/utils/restAlert'
+import { PerformanceForm } from './PerformanceForm'
 
 type Phase = 'logging' | 'resting'
 
@@ -19,7 +20,10 @@ type Phase = 'logging' | 'resting'
  *
  * Keeps its own local rest countdown independent of the app-wide `restTimerStore`/floating
  * `RestTimer` widget (used by the ad-hoc checklist flow) so the two don't fight over one
- * full-screen vs. one corner-widget presentation.
+ * full-screen vs. one corner-widget presentation. Like that store, the countdown is
+ * derived from an end timestamp rather than decremented, so it stays correct if the app
+ * is backgrounded or the phone locks mid-rest; the screen is kept awake for as long as
+ * the session is on screen (unless turned off in Preferences).
  */
 export function GuidedSession({
   groups,
@@ -41,9 +45,11 @@ export function GuidedSession({
   const [groupIndex, setGroupIndex] = useState(0)
   const [exerciseIndexInGroup, setExerciseIndexInGroup] = useState(0)
   const [phase, setPhase] = useState<Phase>('logging')
+  /** Unix milliseconds at which the current rest ends; `null` outside the resting phase. */
+  const [restEndsAt, setRestEndsAt] = useState<number | null>(null)
   const [restRemaining, setRestRemaining] = useState(restDuration)
 
-  useWakeLock(useSettingsStore((s) => s.keepScreenAwake))
+  useKeepAwake(useSettingsStore((s) => s.keepScreenAwake))
 
   const totalExercises = groups.reduce((sum, g) => sum + g.length, 0)
   const currentGroup = groups[groupIndex] ?? []
@@ -63,22 +69,32 @@ export function GuidedSession({
   }, [isLastExerciseInGroup])
 
   useEffect(() => {
-    if (phase !== 'resting') return
-    const timeout = setTimeout(() => {
-      if (restRemaining <= 1) {
-        signalRestOver()
+    if (phase !== 'resting' || restEndsAt === null) return
+    const tick = () => {
+      const remaining = secondsUntil(restEndsAt)
+      if (remaining <= 0) {
+        fireRestAlert()
+        setRestEndsAt(null)
         setPhase('logging')
         advance()
       } else {
-        setRestRemaining((r) => r - 1)
+        setRestRemaining(remaining)
       }
-    }, 1000)
-    return () => clearTimeout(timeout)
-  }, [phase, restRemaining, advance])
+    }
+    const interval = setInterval(tick, 250)
+    // Timers are throttled while hidden — catch up the instant the app is visible again.
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', tick)
+    }
+  }, [phase, restEndsAt, advance])
+
+  // Leaving the session mid-rest shouldn't leave an alert pending for it.
+  useEffect(() => disarmRestAlert, [])
 
   const handleSubmit = async (performance: Omit<ExercisePerformance, 'exerciseId' | 'timestamp'>) => {
     if (!currentExercise) return
-    primeRestAlert()
     await onLogExercise(currentExercise, performance)
 
     if (isVeryLast) {
@@ -86,7 +102,11 @@ export function GuidedSession({
     } else if (isLastExerciseInGroup) {
       // Group finished — a real rest follows. The exercise just completed (the group's
       // last member) may have its own custom rest override.
-      setRestRemaining(currentExercise.restSeconds ?? restDuration)
+      const restSeconds = currentExercise.restSeconds ?? restDuration
+      const endsAt = Date.now() + restSeconds * 1000
+      setRestRemaining(restSeconds)
+      setRestEndsAt(endsAt)
+      armRestAlert(endsAt)
       setPhase('resting')
     } else {
       // More members in this same group — straight on, no rest.
@@ -95,6 +115,8 @@ export function GuidedSession({
   }
 
   const skipRest = () => {
+    disarmRestAlert()
+    setRestEndsAt(null)
     setPhase('logging')
     advance()
   }

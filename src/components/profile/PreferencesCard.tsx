@@ -149,7 +149,7 @@ export function PreferencesCard() {
         <Switch label="Rest timer vibration" checked={restTimerVibrate} onChange={setRestTimerVibrate} />
       </Row>
 
-      <Row label="Keep screen awake" hint="During a guided workout">
+      <Row label="Keep screen awake" hint="During guided workouts and rest timers">
         <Switch label="Keep screen awake" checked={keepScreenAwake} onChange={setKeepScreenAwake} />
       </Row>
 

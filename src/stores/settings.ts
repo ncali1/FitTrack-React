@@ -16,7 +16,7 @@ interface SettingsState {
   restTimerSound: boolean
   /** Vibrate when a rest period ends (on devices that support it). */
   restTimerVibrate: boolean
-  /** Keep the screen from sleeping during a guided workout. */
+  /** Keep the screen from sleeping during a guided workout or while a rest timer runs. */
   keepScreenAwake: boolean
 
   toggleWeightUnit: () => void
