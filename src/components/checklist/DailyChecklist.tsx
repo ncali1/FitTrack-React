@@ -227,6 +227,19 @@ export function DailyChecklist() {
     }
   }
 
+  /** Puts the swapped-in exercise in the running session, and in the day's plan so the
+   *  checklist and completion stats match what was actually done. */
+  const handleGuidedSwap = async (from: Exercise, to: Exercise) => {
+    setGuidedGroups((prev) => prev && prev.map((group) => group.map((ex) => (ex.id === from.id ? to : ex))))
+    const swapped = exerciseIdsForDay.map((id) => (id === from.id ? to.id : id))
+    try {
+      await setPlannedExercises(selectedDate, [...new Set(swapped)])
+    } catch (err) {
+      console.error('Failed to swap exercise:', err)
+      setError('Failed to save the swap. Please try again.')
+    }
+  }
+
   const handleGuidedComplete = () => {
     // Reads the store directly (not the reactive `sessions` above) because this runs at
     // the tail of an async chain that began at an earlier render — the closure captured
@@ -342,6 +355,7 @@ export function DailyChecklist() {
           sessions={sessions}
           restDuration={restDuration}
           onLogExercise={handleGuidedLog}
+          onSwapExercise={handleGuidedSwap}
           onComplete={handleGuidedComplete}
         />
       ) : (
