@@ -1,7 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import type { ComponentProps, ComponentType } from 'react'
 import type { MovementPattern } from '@/utils/muscleRegions'
-import { hasPose3D } from '@/utils/exercisePoses'
 import { supportsWebGL } from '@/services/webgl'
 import { MuscleBodyDiagram } from './MuscleBodyDiagram'
 import type Preview3DComponent from './ExercisePreview3D'
@@ -25,7 +24,7 @@ const ExercisePreview3D = lazy<ComponentType<Preview3DProps>>(() =>
 
 /**
  * The best available exercise preview: a 3D character looping the movement when the
- * pattern has 3D keyframes and the device can draw WebGL, otherwise the animated 2D
+ * exercise has a movement pattern and the device can draw WebGL, otherwise the animated 2D
  * MuscleBodyDiagram (also shown while the 3D chunk loads).
  */
 export function ExercisePreview({
@@ -39,7 +38,7 @@ export function ExercisePreview({
   const handleError = useCallback(() => setFailed(true), [])
   const diagram = <MuscleBodyDiagram targetMuscleGroups={targetMuscleGroups} pattern={pattern} />
 
-  if (failed || !hasPose3D(pattern) || !supportsWebGL()) return diagram
+  if (failed || !pattern || !supportsWebGL()) return diagram
 
   return (
     <div

@@ -23,16 +23,10 @@ describe('ExercisePreview', () => {
     vi.mocked(supportsWebGL).mockReturnValue(true)
   })
 
-  it('shows the 3D scene for a pattern with 3D keyframes', async () => {
+  it('shows the 3D scene for an exercise with a movement pattern', async () => {
     render(<ExercisePreview targetMuscleGroups={['Biceps']} pattern="curl" />)
     expect(await screen.findByText('3D scene')).toBeTruthy()
     expect(screen.getByRole('img', { name: /3D preview/ })).toBeTruthy()
-  })
-
-  it('keeps the 2D diagram for patterns without 3D keyframes yet', () => {
-    render(<ExercisePreview targetMuscleGroups={['Core']} pattern="twist" />)
-    expect(screen.getByText('Front')).toBeTruthy()
-    expect(screen.queryByRole('img', { name: /3D preview/ })).toBeNull()
   })
 
   it('keeps the 2D diagram for exercises with no movement pattern', () => {

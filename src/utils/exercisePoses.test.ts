@@ -1,17 +1,39 @@
 import { describe, it, expect } from 'vitest'
-import { hasPose3D, peakSeconds, poseAt } from './exercisePoses'
+import { JOINTS, peakSeconds, poseAt, viewAngle } from './exercisePoses'
 import type { Rotation } from './exercisePoses'
+import type { MovementPattern } from './muscleRegions'
 
 const closeTo = ([x, y, z]: Rotation) => [expect.closeTo(x, 6), expect.closeTo(y, 6), expect.closeTo(z, 6)]
 
 describe('exercisePoses', () => {
-  it('has keyframes for the prototype patterns only', () => {
-    for (const pattern of ['press', 'row', 'raise', 'curl', 'bob'] as const) expect(hasPose3D(pattern)).toBe(true)
-    for (const pattern of ['lean', 'bridge', 'rise', 'pulse', 'twist'] as const) {
-      expect(hasPose3D(pattern)).toBe(false)
-      expect(poseAt(pattern, 0)).toBeNull()
+  const PATTERNS: MovementPattern[] = ['press', 'row', 'raise', 'curl', 'bob', 'lean', 'bridge', 'rise', 'pulse', 'twist']
+
+  it('moves the figure in every pattern', () => {
+    for (const pattern of PATTERNS) {
+      const start = poseAt(pattern, 0)
+      const peak = poseAt(pattern, peakSeconds(pattern))
+      const moved = JOINTS.some((joint) => {
+        const a = start.joints[joint] ?? [0, 0, 0]
+        const b = peak.joints[joint] ?? [0, 0, 0]
+        return a.some((value, axis) => Math.abs(value - b[axis]) > 0.1)
+      })
+      expect(moved, pattern).toBe(true)
     }
-    expect(hasPose3D(undefined)).toBe(false)
+  })
+
+  it('lays the bridge flat on the floor and views it from the side', () => {
+    expect(poseAt('bridge', 0).root!.pitch).toBeCloseTo(-Math.PI / 2)
+    expect(viewAngle('bridge')).toBeGreaterThan(viewAngle('curl'))
+  })
+
+  it('lifts the heels in a calf raise by turning the ankles', () => {
+    expect(poseAt('rise', 0).joints.ankleL).toEqual(closeTo([0, 0, 0]))
+    expect(poseAt('rise', peakSeconds('rise')).joints.ankleL![0]).toBeGreaterThan(0)
+    expect(poseAt('rise', peakSeconds('rise')).root!.y).toBeGreaterThan(0)
+  })
+
+  it('turns the torso from one side to the other in a twist', () => {
+    expect(poseAt('twist', 0).joints.spine![1]).toBeCloseTo(-poseAt('twist', peakSeconds('twist')).joints.spine![1])
   })
 
   it('starts a rep at the start pose and reaches the end pose halfway through', () => {
@@ -38,8 +60,8 @@ describe('exercisePoses', () => {
   })
 
   it('moves the whole body only for movements that need it', () => {
-    expect(poseAt('bob', peakSeconds('bob'))!.root).toEqual({ y: expect.closeTo(-0.35, 6), z: expect.closeTo(-0.3, 6) })
-    expect(poseAt('curl', peakSeconds('curl'))!.root).toEqual({ y: 0, z: 0 })
+    expect(poseAt('bob', peakSeconds('bob'))!.root).toEqual({ y: expect.closeTo(-0.35, 6), z: expect.closeTo(-0.3, 6), pitch: 0 })
+    expect(poseAt('curl', peakSeconds('curl'))!.root).toEqual({ y: 0, z: 0, pitch: 0 })
   })
 
   it('eases between the ends, never overshooting them', () => {
