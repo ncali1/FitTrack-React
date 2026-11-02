@@ -16,12 +16,14 @@ export const BONE_FOR_JOINT: Record<Joint, string> = {
   elbowR: 'lowerarm_r',
   hipL: 'thigh_l',
   kneeL: 'calf_l',
+  ankleL: 'foot_l',
   hipR: 'thigh_r',
   kneeR: 'calf_r',
+  ankleR: 'foot_r',
 }
 
 /** Joints in parent-before-child order, so each bone is posed after the bones it hangs from. */
-export const JOINT_ORDER: Joint[] = ['spine', 'shoulderL', 'elbowL', 'shoulderR', 'elbowR', 'hipL', 'kneeL', 'hipR', 'kneeR']
+export const JOINT_ORDER: Joint[] = ['spine', 'shoulderL', 'elbowL', 'shoulderR', 'elbowR', 'hipL', 'kneeL', 'ankleL', 'hipR', 'kneeR', 'ankleR']
 
 /** The joint whose world rotation a joint's rotation is relative to — matching the pose
  *  data's rig, where the arms hang from the spine and the legs from the hips. */
@@ -32,6 +34,8 @@ export const PARENT_JOINT: Partial<Record<Joint, Joint>> = {
   elbowR: 'shoulderR',
   kneeL: 'hipL',
   kneeR: 'hipR',
+  ankleL: 'kneeL',
+  ankleR: 'kneeR',
 }
 
 /** How close to the shoulder joint (metres) a clavicle-weighted vertex must be to count

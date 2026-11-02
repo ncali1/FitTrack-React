@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import figureUrl from '@/assets/models/exercise-figure.glb?url'
 import { activeRegionsFor } from '@/utils/muscleRegions'
 import type { MovementPattern, RegionId } from '@/utils/muscleRegions'
-import { peakSeconds, poseAt } from '@/utils/exercisePoses'
+import { peakSeconds, poseAt, viewAngle } from '@/utils/exercisePoses'
 import type { Joint } from '@/utils/exercisePoses'
 import { BONE_FOR_JOINT, JOINT_ORDER, PARENT_JOINT, regionForVertex } from '@/utils/figureRig'
 
@@ -153,32 +153,33 @@ export default function ExercisePreview3D({
     const euler = new THREE.Euler()
     const local = new THREE.Quaternion()
     const parentWorld = new THREE.Quaternion()
-    const turntableWorld = new THREE.Quaternion()
+    const modelWorld = new THREE.Quaternion()
 
     const renderAt = (seconds: number, sway: boolean) => {
       // A three-quarter view reads most movements best; the sway reveals the back,
       // kept short of fully side-on, where the arms hide behind the body.
-      turntable.rotation.y = 0.5 + (sway ? Math.sin(seconds * 0.5) * 0.7 : 0)
+      turntable.rotation.y = viewAngle(pattern) + (sway ? Math.sin(seconds * 0.5) * 0.7 : 0)
       turntable.updateMatrixWorld()
 
-      const pose = model && poseAt(pattern, seconds)
-      if (model && pose) {
-        turntable.getWorldQuaternion(turntableWorld)
+      if (model) {
+        const pose = poseAt(pattern, seconds)
+        model.position.y = pose.root?.y ?? 0
+        model.position.z = pose.root?.z ?? 0
+        model.rotation.x = pose.root?.pitch ?? 0
+        model.getWorldQuaternion(modelWorld)
         for (const joint of JOINT_ORDER) {
           // The pose data's rig rotates each joint relative to its parent joint; build
           // that up into a world rotation, then solve for the bone's local rotation.
           const [x, y, z] = pose.joints[joint] ?? [0, 0, 0]
           local.setFromEuler(euler.set(x, y, z))
           const parent = PARENT_JOINT[joint]
-          poseWorld[joint].copy(parent ? poseWorld[parent] : turntableWorld).multiply(local)
+          poseWorld[joint].copy(parent ? poseWorld[parent] : modelWorld).multiply(local)
 
           const bone = bones[joint]
           bone.parent!.updateWorldMatrix(true, false)
           bone.parent!.getWorldQuaternion(parentWorld)
           bone.quaternion.copy(parentWorld.invert().multiply(poseWorld[joint]).multiply(rest[joint]))
         }
-        model.position.y = pose.root?.y ?? 0
-        model.position.z = pose.root?.z ?? 0
       }
       renderer.render(scene, camera)
     }
