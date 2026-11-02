@@ -163,9 +163,11 @@ export default function ExercisePreview3D({
 
       if (model) {
         const pose = poseAt(pattern, seconds)
+        model.position.x = pose.root?.x ?? 0
         model.position.y = pose.root?.y ?? 0
         model.position.z = pose.root?.z ?? 0
         model.rotation.x = pose.root?.pitch ?? 0
+        model.rotation.z = pose.root?.roll ?? 0
         model.getWorldQuaternion(modelWorld)
         for (const joint of JOINT_ORDER) {
           // The pose data's rig rotates each joint relative to its parent joint; build

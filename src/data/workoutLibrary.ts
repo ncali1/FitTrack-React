@@ -205,7 +205,7 @@ export const WORKOUT_LIBRARY: LibraryWorkout[] = [
     targetSets: 3,
     targetReps: 1,
     targetMuscleGroups: ['Core'],
-    movementPattern: 'pulse',
+    movementPattern: 'plank',
   },
   {
     id: 'russian-twist',
@@ -385,7 +385,7 @@ export const WORKOUT_LIBRARY: LibraryWorkout[] = [
     targetSets: 3,
     targetReps: 1,
     targetMuscleGroups: ['Forearms', 'Core'],
-    movementPattern: 'pulse',
+    movementPattern: 'carry',
   },
   {
     id: 'front-squat',
@@ -475,7 +475,7 @@ export const WORKOUT_LIBRARY: LibraryWorkout[] = [
     targetSets: 3,
     targetReps: 15,
     targetMuscleGroups: ['Core'],
-    movementPattern: 'pulse',
+    movementPattern: 'crunch',
   },
   {
     id: 'ab-wheel-rollout',
@@ -484,7 +484,7 @@ export const WORKOUT_LIBRARY: LibraryWorkout[] = [
     targetSets: 3,
     targetReps: 10,
     targetMuscleGroups: ['Core'],
-    movementPattern: 'pulse',
+    movementPattern: 'rollout',
   },
   {
     id: 'side-plank',
@@ -493,7 +493,7 @@ export const WORKOUT_LIBRARY: LibraryWorkout[] = [
     targetSets: 3,
     targetReps: 1,
     targetMuscleGroups: ['Core'],
-    movementPattern: 'pulse',
+    movementPattern: 'sidePlank',
   },
   {
     id: 'dead-bug',
@@ -502,7 +502,7 @@ export const WORKOUT_LIBRARY: LibraryWorkout[] = [
     targetSets: 3,
     targetReps: 12,
     targetMuscleGroups: ['Core'],
-    movementPattern: 'pulse',
+    movementPattern: 'deadBug',
   },
   {
     id: 'single-leg-calf-raise',

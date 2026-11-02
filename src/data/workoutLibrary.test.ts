@@ -12,8 +12,13 @@ const KNOWN_PATTERNS: MovementPattern[] = [
   'lean',
   'bridge',
   'rise',
-  'pulse',
   'twist',
+  'plank',
+  'sidePlank',
+  'rollout',
+  'deadBug',
+  'carry',
+  'crunch',
 ]
 
 describe('WORKOUT_LIBRARY', () => {

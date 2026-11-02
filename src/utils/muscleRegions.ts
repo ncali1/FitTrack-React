@@ -47,6 +47,22 @@ export function activeRegionsFor(muscleGroups: string[]): Set<RegionId> {
  * The rep-loop archetypes a workout's movement can be approximated by. `press`/`row`/
  * `raise` animate a whole arm as one rigid group (shoulder-driven); `curl` animates only
  * the forearm sub-group (elbow-driven); `bob`/`lean`/`rise`/`twist` animate the entire
- * figure together; `bridge`/`pulse` animate a single highlighted region directly.
+ * figure together; `bridge` and the core patterns (`plank` to `crunch`) animate a single
+ * highlighted region directly.
  */
-export type MovementPattern = 'press' | 'row' | 'raise' | 'curl' | 'bob' | 'lean' | 'bridge' | 'rise' | 'pulse' | 'twist'
+export type MovementPattern =
+  | 'press'
+  | 'row'
+  | 'raise'
+  | 'curl'
+  | 'bob'
+  | 'lean'
+  | 'bridge'
+  | 'rise'
+  | 'twist'
+  | 'plank'
+  | 'sidePlank'
+  | 'rollout'
+  | 'deadBug'
+  | 'carry'
+  | 'crunch'

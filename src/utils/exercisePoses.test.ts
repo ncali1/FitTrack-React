@@ -6,7 +6,23 @@ import type { MovementPattern } from './muscleRegions'
 const closeTo = ([x, y, z]: Rotation) => [expect.closeTo(x, 6), expect.closeTo(y, 6), expect.closeTo(z, 6)]
 
 describe('exercisePoses', () => {
-  const PATTERNS: MovementPattern[] = ['press', 'row', 'raise', 'curl', 'bob', 'lean', 'bridge', 'rise', 'pulse', 'twist']
+  const PATTERNS: MovementPattern[] = [
+    'press',
+    'row',
+    'raise',
+    'curl',
+    'bob',
+    'lean',
+    'bridge',
+    'rise',
+    'twist',
+    'plank',
+    'sidePlank',
+    'rollout',
+    'deadBug',
+    'carry',
+    'crunch',
+  ]
 
   it('moves the figure in every pattern', () => {
     for (const pattern of PATTERNS) {
@@ -15,7 +31,7 @@ describe('exercisePoses', () => {
       const moved = JOINTS.some((joint) => {
         const a = start.joints[joint] ?? [0, 0, 0]
         const b = peak.joints[joint] ?? [0, 0, 0]
-        return a.some((value, axis) => Math.abs(value - b[axis]) > 0.1)
+        return a.some((value, axis) => Math.abs(value - b[axis]) > 0.02)
       })
       expect(moved, pattern).toBe(true)
     }
@@ -30,6 +46,19 @@ describe('exercisePoses', () => {
     expect(poseAt('rise', 0).joints.ankleL).toEqual(closeTo([0, 0, 0]))
     expect(poseAt('rise', peakSeconds('rise')).joints.ankleL![0]).toBeGreaterThan(0)
     expect(poseAt('rise', peakSeconds('rise')).root!.y).toBeGreaterThan(0)
+  })
+
+  it('holds planks nearly still, tipped just off the floor', () => {
+    expect(poseAt('plank', 0).root!.pitch).toBeCloseTo(Math.PI / 2 - 0.09)
+    expect(poseAt('sidePlank', 0).root!.roll).toBeCloseTo(Math.PI / 2 - 0.27)
+    expect(Math.abs(poseAt('plank', 0).root!.pitch! - poseAt('plank', peakSeconds('plank')).root!.pitch!)).toBeLessThan(0.05)
+  })
+
+  it('swaps the reaching arm and low leg between sides in a dead bug', () => {
+    const start = poseAt('deadBug', 0).joints
+    const peak = poseAt('deadBug', peakSeconds('deadBug')).joints
+    expect(start.shoulderR).toEqual(closeTo(peak.shoulderL!))
+    expect(start.hipL).toEqual(closeTo(peak.hipR!))
   })
 
   it('turns the torso from one side to the other in a twist', () => {
@@ -60,8 +89,8 @@ describe('exercisePoses', () => {
   })
 
   it('moves the whole body only for movements that need it', () => {
-    expect(poseAt('bob', peakSeconds('bob'))!.root).toEqual({ y: expect.closeTo(-0.35, 6), z: expect.closeTo(-0.3, 6), pitch: 0 })
-    expect(poseAt('curl', peakSeconds('curl'))!.root).toEqual({ y: 0, z: 0, pitch: 0 })
+    expect(poseAt('bob', peakSeconds('bob'))!.root).toEqual({ x: 0, y: expect.closeTo(-0.35, 6), z: expect.closeTo(-0.3, 6), pitch: 0, roll: 0 })
+    expect(poseAt('curl', peakSeconds('curl'))!.root).toEqual({ x: 0, y: 0, z: 0, pitch: 0, roll: 0 })
   })
 
   it('eases between the ends, never overshooting them', () => {

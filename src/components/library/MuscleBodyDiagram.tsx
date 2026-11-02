@@ -30,7 +30,7 @@ import type { RegionId, MovementPattern } from '@/utils/muscleRegions'
  * The rep-loop archetypes a workout's movement can be approximated by. `press`/`row`/
  * `raise` animate a whole arm as one rigid group (shoulder-driven); `curl` animates only
  * the forearm sub-group (elbow-driven); `bob`/`lean`/`rise`/`twist` animate the entire
- * figure together; `bridge`/`pulse` animate a single highlighted region directly.
+ * figure together; `bridge` and the core patterns animate a single highlighted region directly.
  */
 const FIGURE_PATTERN_CLASS: Partial<Record<MovementPattern, string>> = {
   bob: 'anim-bob',
@@ -66,10 +66,13 @@ function regionFill(active: Set<RegionId>, region: RegionId, grad: GradientIds):
   }
 }
 
+/** Core work the flat figure can't act out, so its core region pulses instead. */
+const CORE_PATTERNS = new Set<MovementPattern>(['plank', 'sidePlank', 'rollout', 'deadBug', 'carry', 'crunch'])
+
 /** Extra animation class for a region whose own shape (not a whole limb) carries the motion. */
 function regionAnimClass(pattern: MovementPattern | undefined, region: RegionId): string {
   if (pattern === 'bridge' && region === 'glutes') return 'anim-bridge'
-  if (pattern === 'pulse' && region === 'core') return 'anim-pulse-part'
+  if (pattern && CORE_PATTERNS.has(pattern) && region === 'core') return 'anim-pulse-part'
   return ''
 }
 
