@@ -105,7 +105,15 @@ const HANDS_BY_HEAD = { shoulder: [-2.1, 0, 0.2], elbow: [-2.3, 0, 0] } satisfie
 /** The default three-quarter view of the figure. */
 const DEFAULT_VIEW = 0.5
 
-const MOVEMENTS: Record<MovementPattern, Movement> = {
+/**
+ * What the 3D figure can be posed doing: a catalog movement, or `stand` — a still,
+ * relaxed stance for custom exercises, which don't have a movement of their own yet.
+ */
+export type FigurePose = MovementPattern | 'stand'
+
+const MOVEMENTS: Record<FigurePose, Movement> = {
+  // Relaxed stance: both ends at rest, so only the turntable moves.
+  stand: { from: { joints: {} }, to: { joints: {} }, seconds: 4 },
   // Overhead press: hands at the shoulders (upper arms out, forearms up) → arms locked out.
   press: {
     from: { joints: bothSides({ shoulder: [0, 0, HALF_PI], elbow: [0, 0, HALF_PI] }) },
@@ -255,7 +263,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t
  * slows to a stop like a controlled rep rather than bouncing. Joints missing from a
  * keyframe count as rest (zero rotation).
  */
-export function poseAt(pattern: MovementPattern, seconds: number): Pose {
+export function poseAt(pattern: FigurePose, seconds: number): Pose {
   const movement = MOVEMENTS[pattern]
 
   // 0 → 1 → 0 over one rep, cosine-eased.
@@ -285,11 +293,11 @@ export function poseAt(pattern: MovementPattern, seconds: number): Pose {
 }
 
 /** Seconds into the rep at its far end — the most telling still frame when motion is off. */
-export function peakSeconds(pattern: MovementPattern): number {
+export function peakSeconds(pattern: FigurePose): number {
   return MOVEMENTS[pattern].seconds / 2
 }
 
 /** The turntable angle a movement reads best from. */
-export function viewAngle(pattern: MovementPattern): number {
+export function viewAngle(pattern: FigurePose): number {
   return MOVEMENTS[pattern].view ?? DEFAULT_VIEW
 }

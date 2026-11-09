@@ -9,11 +9,11 @@ vi.mock('@/services/webgl', () => ({ supportsWebGL: vi.fn(() => true) }))
 /** Stand-in for the WebGL scene, which happy-dom can't draw; `fail` simulates a renderer error. */
 const scene = vi.hoisted(() => ({ fail: false }))
 vi.mock('./ExercisePreview3D', () => ({
-  default: function FakeScene({ onError }: { onError: () => void }) {
+  default: function FakeScene({ onError, pattern }: { onError: () => void; pattern: string }) {
     useEffect(() => {
       if (scene.fail) onError()
     }, [onError])
-    return <span>3D scene</span>
+    return <span data-pose={pattern}>3D scene</span>
   },
 }))
 
@@ -29,9 +29,9 @@ describe('ExercisePreview', () => {
     expect(screen.getByRole('img', { name: /3D preview/ })).toBeTruthy()
   })
 
-  it('keeps the 2D diagram for exercises with no movement pattern', () => {
+  it('shows the 3D figure standing for a custom exercise with no movement pattern', async () => {
     render(<ExercisePreview targetMuscleGroups={['Chest']} />)
-    expect(screen.getByText('Front')).toBeTruthy()
+    expect((await screen.findByText('3D scene')).getAttribute('data-pose')).toBe('stand')
   })
 
   it('falls back to the 2D diagram on devices without WebGL', () => {

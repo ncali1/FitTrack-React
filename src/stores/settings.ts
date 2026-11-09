@@ -5,6 +5,9 @@ import type { DistanceUnit } from '@/utils/cardio'
 
 const DEFAULT_REST_SECONDS = 90
 
+/** How the Library tab lays out exercises: ruled rows, or tiles with a muscle diagram. */
+export type LibraryView = 'list' | 'grid'
+
 interface SettingsState {
   weightUnit: WeightUnit
   /** Display unit for cardio distances; stored distances are always km. */
@@ -18,6 +21,7 @@ interface SettingsState {
   restTimerVibrate: boolean
   /** Keep the screen from sleeping during a guided workout or while a rest timer runs. */
   keepScreenAwake: boolean
+  libraryView: LibraryView
 
   toggleWeightUnit: () => void
   setDistanceUnit: (unit: DistanceUnit) => void
@@ -26,11 +30,12 @@ interface SettingsState {
   setRestTimerSound: (enabled: boolean) => void
   setRestTimerVibrate: (enabled: boolean) => void
   setKeepScreenAwake: (enabled: boolean) => void
+  setLibraryView: (view: LibraryView) => void
 }
 
 /**
  * Small persisted user preferences: weight display unit, default rest timer duration,
- * rest-timer alerts, screen wake lock, and whether local workout reminders are enabled. Persisted to localStorage (not
+ * rest-timer alerts, screen wake lock, Library layout, and whether local workout reminders are enabled. Persisted to localStorage (not
  * IndexedDB) since these are per-device display preferences, not workout data.
  */
 export const useSettingsStore = create<SettingsState>()(
@@ -43,6 +48,7 @@ export const useSettingsStore = create<SettingsState>()(
       restTimerSound: false,
       restTimerVibrate: true,
       keepScreenAwake: true,
+      libraryView: 'list',
 
       toggleWeightUnit: () => set((state) => ({ weightUnit: state.weightUnit === 'kg' ? 'lb' : 'kg' })),
       setDistanceUnit: (unit) => set({ distanceUnit: unit }),
@@ -51,6 +57,7 @@ export const useSettingsStore = create<SettingsState>()(
       setRestTimerSound: (enabled) => set({ restTimerSound: enabled }),
       setRestTimerVibrate: (enabled) => set({ restTimerVibrate: enabled }),
       setKeepScreenAwake: (enabled) => set({ keepScreenAwake: enabled }),
+      setLibraryView: (view) => set({ libraryView: view }),
     }),
     { name: 'fittrack-settings' }
   )

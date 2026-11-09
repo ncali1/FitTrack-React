@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Search, X, Dumbbell, ChevronRight, Check, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Search, X, ChevronRight, Check, Plus, Pencil, Trash2, List, LayoutGrid } from 'lucide-react'
 import { toast } from 'sonner'
 import { useExercisesStore } from '@/stores/exercises'
 import { useRoutineStore } from '@/stores/routine'
@@ -12,6 +12,9 @@ import { WORKOUT_LIBRARY, type LibraryWorkout } from '@/data/workoutLibrary'
 import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { ensureExerciseFromLibrary, findExerciseForLibraryWorkout } from '@/utils/libraryExercise'
 import { ExercisePreview } from './ExercisePreview'
+import { FigureThumbnail } from './FigureThumbnail'
+import { CUSTOM_POSE_NOTE } from './customPose'
+import { useSettingsStore } from '@/stores/settings'
 import { InlineNameForm } from '@/components/profile/InlineNameForm'
 import { ExerciseForm } from '@/components/exercises/ExerciseForm'
 import type { Exercise, WorkoutTemplate } from '@/types'
@@ -89,7 +92,8 @@ function todayString(): string {
 
 /**
  * The Library tab: one searchable, filterable list of every exercise — the built-in
- * catalog plus the user's own — each marked with an icon tinted by its main muscle group.
+ * catalog plus the user's own — shown as ruled rows or as tiles with a still of the 3D
+ * character (the choice is a persisted per-device setting).
  * "Add exercise" creates a custom one. Tapping a row opens a sheet to add it to today or
  * to a routine (adding a catalog entry also adds it to the user's exercises the first
  * time), and to edit or delete it if it's custom.
@@ -104,6 +108,8 @@ export function WorkoutLibrary() {
   const todaySession = useWorkoutSessionsStore((s) => s.sessions.find((session) => session.date === todayString()))
   const setPlannedExercises = useWorkoutSessionsStore((s) => s.setPlannedExercises)
   const assignExercise = useRoutineStore((s) => s.assignExercise)
+  const view = useSettingsStore((s) => s.libraryView)
+  const setView = useSettingsStore((s) => s.setLibraryView)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedGroup, setSelectedGroup] = useState('All')
@@ -236,8 +242,8 @@ export function WorkoutLibrary() {
               aria-pressed={selectedGroup === group}
               className={
                 selectedGroup === group
-                  ? 'flex-none px-3.5 py-1.5 rounded-full text-xs font-semibold bg-accent text-canvas border border-accent'
-                  : 'flex-none px-3.5 py-1.5 rounded-full text-xs font-semibold bg-transparent text-ink-muted border border-surface-border'
+                  ? 'flex-none px-3.5 py-1.5 chip chip-on'
+                  : 'flex-none px-3.5 py-1.5 chip'
               }
             >
               {group}
@@ -250,46 +256,89 @@ export function WorkoutLibrary() {
         <span className="text-xs text-ink-muted">
           {filteredWorkouts.length} {filteredWorkouts.length === 1 ? 'exercise' : 'exercises'}
         </span>
-        <button onClick={() => setEditing('new')} className="btn-ghost !px-2.5 !py-1 text-xs">
-          <Plus size={14} strokeWidth={2.5} />
-          Add exercise
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setEditing('new')} className="btn-ghost !px-2.5 !py-1 text-xs">
+            <Plus size={14} strokeWidth={2.5} />
+            Add exercise
+          </button>
+          <div className="flex border border-surface-border rounded-sm" role="group" aria-label="Layout">
+            {([
+              ['list', List, 'List view'],
+              ['grid', LayoutGrid, 'Grid view'],
+            ] as const).map(([value, Icon, label]) => (
+              <button
+                key={value}
+                onClick={() => setView(value)}
+                aria-pressed={view === value}
+                aria-label={label}
+                className={
+                  view === value
+                    ? 'w-9 h-8 flex items-center justify-center bg-surface-hover text-accent'
+                    : 'w-9 h-8 flex items-center justify-center text-ink-faint hover:text-ink'
+                }
+              >
+                <Icon size={16} strokeWidth={2} />
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {filteredWorkouts.length === 0 ? (
-        <div className="card-pad text-center py-14">
-          <div className="empty-blob">🔍</div>
+        <div className="border-y border-surface-border text-center py-14">
+          <div className="empty-blob"><Search size={22} strokeWidth={1.75} /></div>
           <p className="text-ink font-semibold">No matches</p>
           <p className="text-ink-muted text-sm mt-1">Try a different search term or muscle group.</p>
         </div>
-      ) : (
-        <div className="space-y-2 stagger-children">
-          {filteredWorkouts.map((workout) => {
-            const groupStyle = muscleGroupStyle(workout.targetMuscleGroups[0] ?? '')
-            return (
-              <div
-                key={workout.key}
-                onClick={() => setSelectedKey(workout.key)}
-                role="button"
-                className="card card-hover animate-pop-in flex items-center gap-3 p-3 cursor-pointer"
-              >
-                {/* Same icon for every exercise, tinted by its main muscle group. */}
-                <div
-                  className={`w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-none ${groupStyle.badge}`}
-                >
-                  <Dumbbell size={17} strokeWidth={2} className={groupStyle.text} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-medium text-ink truncate">{workout.name}</h3>
-                  <div className="text-xs text-ink-muted mt-0.5 truncate">
-                    {workout.targetSets}×{workout.targetReps} · {workout.targetMuscleGroups.slice(0, 2).join(', ')}
-                  </div>
-                </div>
-                {!workout.catalog && <span className="badge-muted flex-none">Custom</span>}
-                <ChevronRight size={16} className="text-ink-faint flex-none" />
+      ) : view === 'grid' ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {filteredWorkouts.map((workout) => (
+            <div
+              key={workout.key}
+              onClick={() => setSelectedKey(workout.key)}
+              role="button"
+              className="relative flex flex-col border border-surface-border rounded-sm p-3 cursor-pointer active:bg-surface-hover"
+            >
+              {!workout.catalog && <span className="badge-muted absolute top-2 right-2 z-10">Custom</span>}
+              <div aria-hidden="true">
+                <FigureThumbnail targetMuscleGroups={workout.targetMuscleGroups} pattern={workout.catalog?.movementPattern} />
               </div>
-            )
-          })}
+              <h3 className="text-sm font-semibold normal-case tracking-normal text-ink leading-snug line-clamp-2 mt-2">
+                {workout.name}
+              </h3>
+              <div className="text-xs text-ink-muted mt-auto pt-1 truncate">
+                <span className="num">
+                  {workout.targetSets}×{workout.targetReps}
+                </span>{' '}
+                · {workout.targetMuscleGroups[0]}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="border-y border-surface-border divide-y divide-surface-border">
+          {filteredWorkouts.map((workout) => (
+            <div
+              key={workout.key}
+              onClick={() => setSelectedKey(workout.key)}
+              role="button"
+              className="flex items-center gap-3 py-3 min-h-14 cursor-pointer active:bg-surface-hover"
+            >
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold normal-case tracking-normal text-ink truncate">
+                  {workout.name}
+                </h3>
+                <div className="text-xs text-ink-muted mt-0.5 truncate">
+                  <span className="num">
+                    {workout.targetSets}×{workout.targetReps}
+                  </span>{' '}
+                  · {workout.targetMuscleGroups.slice(0, 2).join(', ')}
+                </div>
+              </div>
+              {!workout.catalog && <span className="badge-muted flex-none">Custom</span>}
+              <ChevronRight size={16} className="text-ink-faint flex-none" />
+            </div>
+          ))}
         </div>
       )}
 
@@ -315,6 +364,7 @@ export function WorkoutLibrary() {
                     targetMuscleGroups={selectedDetail.targetMuscleGroups}
                     pattern={selectedDetail.catalog?.movementPattern}
                   />
+                  {isCustom && <p className="text-xs text-ink-faint mt-2">{CUSTOM_POSE_NOTE}</p>}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-6">
                   {selectedDetail.targetMuscleGroups.map((group) => (
@@ -382,7 +432,7 @@ export function WorkoutLibrary() {
                       <button className="btn-primary flex-1" disabled={adding} onClick={handleAddToToday}>
                         {adding ? 'Adding...' : 'Add to today'}
                       </button>
-                      <button className="btn-primary flex-1" disabled={adding} onClick={() => setPickingRoutine(true)}>
+                      <button className="btn-secondary flex-1" disabled={adding} onClick={() => setPickingRoutine(true)}>
                         Add to routine
                       </button>
                     </div>

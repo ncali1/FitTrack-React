@@ -66,4 +66,11 @@ describe('MuscleBodyDiagram', () => {
     const { container } = render(<MuscleBodyDiagram targetMuscleGroups={['Glutes']} pattern="bridge" />)
     expect(container.querySelector('ellipse.anim-bridge')).toBeTruthy()
   })
+
+  it('renders a still version without the turntable spin or view labels', () => {
+    const { container, queryByText } = render(<MuscleBodyDiagram targetMuscleGroups={['Chest']} still />)
+    expect(container.querySelector('.tilt3d-figure')).toBeNull()
+    expect(queryByText('Front')).toBeNull()
+    expect(container.querySelectorAll('[data-region-active="true"]').length).toBeGreaterThan(0)
+  })
 })

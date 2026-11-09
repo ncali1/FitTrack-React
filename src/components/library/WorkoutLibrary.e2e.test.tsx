@@ -11,6 +11,7 @@ import { WorkoutLibrary } from './WorkoutLibrary'
 import { useExercisesStore } from '@/stores/exercises'
 import { useRoutineStore } from '@/stores/routine'
 import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
+import { useSettingsStore } from '@/stores/settings'
 import { getDayOfWeek } from '@/utils/calculations'
 
 vi.mock('@/services/storage', () => ({
@@ -49,6 +50,7 @@ const mockedToast = vi.mocked(toast)
 const INITIAL_EXERCISES = useExercisesStore.getState()
 const INITIAL_ROUTINES = useRoutineStore.getState()
 const INITIAL_TEMPLATES = useWorkoutTemplatesStore.getState()
+const INITIAL_SETTINGS = useSettingsStore.getState()
 
 const TODAY = getDayOfWeek(
   (() => {
@@ -62,7 +64,41 @@ describe('E2E: Workout Library', () => {
     useExercisesStore.setState(INITIAL_EXERCISES, true)
     useRoutineStore.setState(INITIAL_ROUTINES, true)
     useWorkoutTemplatesStore.setState(INITIAL_TEMPLATES, true)
+    useSettingsStore.setState(INITIAL_SETTINGS, true)
     vi.clearAllMocks()
+  })
+
+  describe('list / grid layout', () => {
+    it('switches to a grid of tiles with muscle diagrams and remembers the choice', async () => {
+      const user = userEvent.setup()
+      const { container, unmount } = render(<WorkoutLibrary />)
+
+      expect(screen.getByRole('button', { name: 'List view' }).getAttribute('aria-pressed')).toBe('true')
+      expect(container.querySelector('[data-region-active]')).toBeNull()
+
+      await user.click(screen.getByRole('button', { name: 'Grid view' }))
+
+      expect(screen.getByRole('button', { name: 'Grid view' }).getAttribute('aria-pressed')).toBe('true')
+      expect(useSettingsStore.getState().libraryView).toBe('grid')
+      expect(screen.getByRole('heading', { level: 3, name: 'Barbell Bench Press' })).toBeTruthy()
+      expect(container.querySelector('[data-region-active="true"]')).not.toBeNull()
+
+      unmount()
+      render(<WorkoutLibrary />)
+      expect(screen.getByRole('button', { name: 'Grid view' }).getAttribute('aria-pressed')).toBe('true')
+    })
+
+    it('opens the same detail sheet from a grid tile, and search still filters', async () => {
+      useSettingsStore.setState({ libraryView: 'grid' })
+      const user = userEvent.setup()
+      render(<WorkoutLibrary />)
+
+      await user.type(screen.getByLabelText(/search workout library/i), 'deadlift')
+      expect(screen.queryByRole('heading', { level: 3, name: 'Barbell Bench Press' })).toBeNull()
+
+      await user.click(screen.getByRole('heading', { level: 3, name: 'Deadlift' }))
+      expect(screen.getByRole('heading', { level: 2, name: 'Deadlift' })).toBeTruthy()
+    })
   })
 
   it('filters the catalog by name search', async () => {
@@ -347,6 +383,27 @@ describe('E2E: Workout Library', () => {
 
       expect(await screen.findByRole('heading', { level: 3, name: 'Landmine Press' })).toBeTruthy()
       expect(useExercisesStore.getState().exercises.map((e) => e.name)).toEqual(['Landmine Press'])
+    })
+
+    it('explains that a custom exercise stands still until a movement is added, and only for custom ones', async () => {
+      const user = userEvent.setup()
+      await useExercisesStore.getState().createExercise('Landmine Press', 3, 10, ['Shoulders'])
+      render(<WorkoutLibrary />)
+
+      await user.click(screen.getByRole('heading', { level: 3, name: 'Overhead Press' }))
+      expect(screen.queryByText(/standing pose for now/)).toBeNull()
+      await user.click(screen.getByRole('button', { name: 'Close' }))
+
+      await user.click(screen.getByRole('heading', { level: 3, name: 'Landmine Press' }))
+      expect(screen.getByText(/standing pose for now/)).toBeTruthy()
+    })
+
+    it('mentions the standing pose when creating a custom exercise', async () => {
+      const user = userEvent.setup()
+      render(<WorkoutLibrary />)
+
+      await user.click(screen.getByRole('button', { name: /add exercise/i }))
+      expect(screen.getByText(/standing pose for now/)).toBeTruthy()
     })
 
     it('offers Edit and Delete for a custom exercise, but not for a catalog entry', async () => {

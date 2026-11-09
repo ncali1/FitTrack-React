@@ -101,4 +101,12 @@ describe('exercisePoses', () => {
       expect(x).toBeGreaterThanOrEqual(-2.3 - 1e-9)
     }
   })
+
+  it('holds the standing pose completely still, so only the turntable moves', () => {
+    for (const seconds of [0, 1, peakSeconds('stand'), 3.3]) {
+      const pose = poseAt('stand', seconds)
+      expect(pose.joints).toEqual({})
+      expect(Object.values(pose.root!).every((v) => v === 0)).toBe(true)
+    }
+  })
 })
