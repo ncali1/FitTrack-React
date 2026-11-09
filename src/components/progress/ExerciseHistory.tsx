@@ -3,9 +3,10 @@ import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { useSettingsStore } from '@/stores/settings'
 import { calculatePersonalRecord } from '@/utils/personalRecords'
 import { formatWeight } from '@/utils/units'
+import { ClipboardList } from 'lucide-react'
 
 const DIFFICULTY_BADGE: Record<string, string> = {
-  easy: 'badge-lime',
+  easy: 'badge-mark',
   moderate: 'badge-warn',
   hard: 'badge-danger',
 }
@@ -51,7 +52,7 @@ export function ExerciseHistory({ exerciseId }: { exerciseId: string }) {
 
       {history.length === 0 ? (
         <div className="text-center py-10">
-          <div className="empty-blob !w-16 !h-16 !text-3xl animate-float">📋</div>
+          <div className="empty-blob"><ClipboardList size={22} strokeWidth={1.75} /></div>
           <p className="text-ink-faint text-sm">No history logged yet for this exercise.</p>
         </div>
       ) : (
@@ -79,7 +80,7 @@ export function ExerciseHistory({ exerciseId }: { exerciseId: string }) {
                 )}
                 {entry.rpe != null && <span className="badge-muted">RPE {entry.rpe}</span>}
                 {entry.isWarmup && <span className="badge-muted">Warm-up</span>}
-                {isPersonalRecord(entry) && <span className="badge-accent">🏆 PR</span>}
+                {isPersonalRecord(entry) && <span className="badge-mark">PR</span>}
               </div>
             </li>
           ))}

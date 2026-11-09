@@ -1,7 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/archivo/wdth.css";
+@import "@fontsource-variable/jetbrains-mono";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -38,43 +39,46 @@
 }
 
 /*
- * FitTrack's own named palette — used directly by the ported .card, .btn-, and .badge- classes
- * below. Sourced from the Nocturne design system tokens in the FitTrack Mobile design handoff
- * (accent overridden for this app only: teal #03ac8f, not Nocturne's shared default).
+ * FitTrack's palette — "training log": a paper gym logbook rendered dark. Warm near-black
+ * pages, chalk-white ink, one safety-orange signal for anything you can act on, and a
+ * chalk-yellow highlighter (`mark`) for things that are done or worth celebrating (PRs,
+ * completed sets, synced). Everything else stays neutral so those two read instantly
+ * mid-set. No shadows: panels are separated by hairlines, like ruled paper.
  */
 @theme {
-  --color-canvas: #161826;
-  --color-canvas-950: #0f1119;
-  --color-canvas-900: #161826;
-  --color-canvas-800: #1b1e2c;
-  --color-canvas-700: #232532;
+  --color-canvas: #0e0e0d;
+  --color-canvas-950: #080807;
+  --color-canvas-900: #0e0e0d;
+  --color-canvas-800: #151513;
+  --color-canvas-700: #1c1c1a;
 
-  --color-surface: #232532;
-  --color-surface-hover: #2a2d3d;
-  --color-surface-border: #33364a;
+  --color-surface: #141412;
+  --color-surface-hover: #1d1d1a;
+  --color-surface-border: #2d2c28;
 
-  --color-accent: #03ac8f;
-  --color-accent-50: #e6f8f3;
-  --color-accent-100: #caf2e6;
-  --color-accent-400: #4dc6aa;
-  --color-accent-500: #03ac8f;
-  --color-accent-600: #008068;
-  --color-accent-700: #005948;
-  --color-accent-800: #00352a;
+  --color-accent: #ff5b1f;
+  --color-accent-50: #fff1eb;
+  --color-accent-100: #ffd9c7;
+  --color-accent-400: #ff7d4d;
+  --color-accent-500: #ff5b1f;
+  --color-accent-600: #e04400;
+  --color-accent-700: #a83300;
+  --color-accent-800: #4a1800;
 
-  --color-lime: #c6ff5e;
-  --color-lime-400: #d4ff85;
-  --color-lime-500: #c6ff5e;
-  --color-lime-600: #a3e639;
+  --color-mark: #ecd54a;
+  --color-mark-400: #f2e07a;
+  --color-mark-500: #ecd54a;
+  --color-mark-600: #c9b22a;
 
-  --color-ink: #e9e9ed;
-  --color-ink-muted: #9a9ea9;
-  --color-ink-faint: #656975;
+  --color-ink: #ece9e2;
+  --color-ink-muted: #a29e95;
+  --color-ink-faint: #76726a;
 
-  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -8px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 0 1px rgba(3, 172, 143, 0.4), 0 0 24px -4px rgba(3, 172, 143, 0.5);
-  --radius-xl2: 1.25rem;
+  --font-sans: "Archivo Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --shadow-card: none;
+  --shadow-glow: 0 0 0 1px var(--color-accent-500);
+  --radius-xl2: 0.25rem;
 }
 
 /*
@@ -83,33 +87,26 @@
  * references them for its unused-variable pruning to see.
  */
 @theme static {
-  --color-figure-body: #8a8e9a;
-  --color-figure-muscle: #f87171;
-  --color-figure-floor: #232532;
+  --color-figure-body: #8c887f;
+  --color-figure-muscle: #ff5b1f;
+  --color-figure-floor: #1c1c1a;
 }
 
-/* Character keyframes — used by the .animate-* utilities below */
+/*
+ * Feedback keyframes — deliberately short and without overshoot. A logbook doesn't bounce;
+ * these only confirm that something changed.
+ */
 @keyframes pop-in {
-  0% { opacity: 0; transform: scale(0.92) translateY(10px); }
-  60% { opacity: 1; transform: scale(1.02) translateY(0); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @keyframes check-bounce {
-  0% { transform: scale(0.5) rotate(-8deg); }
-  55% { transform: scale(1.2) rotate(4deg); }
-  100% { transform: scale(1) rotate(0deg); }
+  from { transform: scale(0.6); }
+  to { transform: scale(1); }
 }
 @keyframes celebrate-in {
-  0% { opacity: 0; transform: scale(0.7) translateY(-10px) rotate(-3deg); }
-  55% { opacity: 1; transform: scale(1.06) translateY(0) rotate(1.5deg); }
-  100% { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); }
-}
-@keyframes float-y {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-}
-@keyframes spin-slow {
-  to { transform: rotate(360deg); }
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /*
@@ -170,23 +167,24 @@
 }
 
 :root {
-  --background: #161826;
-  --foreground: #e9e9ed;
-  --card: #232532;
-  --card-foreground: #e9e9ed;
-  --popover: #232532;
-  --popover-foreground: #e9e9ed;
-  --primary: #03ac8f;
-  --primary-foreground: #161826;
-  --secondary: #2a2d3d;
-  --secondary-foreground: #e9e9ed;
-  --muted: #2a2d3d;
-  --muted-foreground: #9a9ea9;
+  --background: #0e0e0d;
+  --foreground: #ece9e2;
+  --card: #141412;
+  --card-foreground: #ece9e2;
+  --popover: #141412;
+  --popover-foreground: #ece9e2;
+  --primary: #ff5b1f;
+  --primary-foreground: #0e0e0d;
+  --secondary: #1d1d1a;
+  --secondary-foreground: #ece9e2;
+  --muted: #1d1d1a;
+  --muted-foreground: #a29e95;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #33364a;
-  --input: #33364a;
-  --ring: #03ac8f;
-  --radius: 0.625rem;
+  --border: #2d2c28;
+  --input: #2d2c28;
+  --ring: #ff5b1f;
+  /* Near-square corners everywhere: Tailwind's rounded-* scale derives from this. */
+  --radius: 0.1875rem;
 }
 
 html {
@@ -195,20 +193,27 @@ html {
 
 body {
   @apply bg-canvas text-ink font-sans antialiased;
-  background-color: #161826;
+  background-color: #0e0e0d;
 }
 
-h1 { @apply text-2xl font-bold tracking-tight; }
-h2 { @apply text-xl font-bold tracking-tight; }
-h3 { @apply text-base font-semibold; }
-
+/*
+ * Headings use Archivo's width axis rather than a second display family: condensed,
+ * uppercase and heavy, like the stencilled headers of a printed training log. In the base
+ * layer so a utility on the element (`text-sm`, `normal-case`) still wins.
+ */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   h1, h2, h3 {
-    color: #f5f6f8;
+    color: #f6f3ec;
+    font-stretch: 72%;
+    text-transform: uppercase;
+    line-height: 1.05;
   }
+  h1 { @apply text-3xl font-extrabold tracking-tight; }
+  h2 { @apply text-2xl font-extrabold tracking-tight; }
+  h3 { @apply text-lg font-bold tracking-normal; }
 }
 
 #root {
@@ -229,113 +234,128 @@ html.scroll-locked body {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* ── Character: motion utilities ─────────────────────────────────────────── */
-.animate-pop-in { animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-.animate-check-bounce { animation: check-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-.animate-celebrate-in { animation: celebrate-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-.animate-float { animation: float-y 3s ease-in-out infinite; }
-.animate-spin-slow { animation: spin-slow 6s linear infinite; }
+/* ── Motion utilities ───────────────────────────────────────────────────── */
+.animate-pop-in { animation: pop-in 0.18s ease-out both; }
+.animate-check-bounce { animation: check-bounce 0.15s ease-out both; }
+.animate-celebrate-in { animation: celebrate-in 0.2s ease-out both; }
 
-/* Staggers a list's pop-in via nth-child delays — apply alongside .animate-pop-in */
-.stagger-children > * { animation-fill-mode: both; }
-.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 40ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 80ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 120ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 160ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 200ms; }
-.stagger-children > *:nth-child(n+7) { animation-delay: 240ms; }
-
-/* Hoverable card lift — layer onto .card / .card-pad where a card is clickable */
+/* Pressable card — layer onto .card / .card-pad where a card is clickable. No lift: the
+   border just darkens on hover and the surface steps on press, so it works on touch too. */
 .card-hover {
-  @apply transition-all duration-200 ease-out hover:-translate-y-1 hover:border-ink-faint/50 hover:shadow-[0_4px_2px_rgba(0,0,0,0.4),0_16px_32px_-8px_rgba(0,0,0,0.6)];
+  @apply transition-colors duration-100 hover:border-ink-faint active:bg-surface-hover;
 }
 
-/* Soft colorful circle behind an empty-state emoji/icon — the "illustration" treatment */
+/* Empty-state marker: a ruled box around a lucide icon, standing in for an illustration. */
 .empty-blob {
-  @apply w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-4xl;
-  background: radial-gradient(circle at 35% 30%, rgba(3, 172, 143, 0.22), rgba(139, 92, 246, 0.14) 55%, transparent 80%);
+  @apply w-14 h-14 mx-auto mb-4 flex items-center justify-center border border-dashed border-surface-border text-ink-faint;
+}
+
+/*
+ * Base shapes for the button and badge variants. @utility (not a plain class) so the
+ * variants below can `@apply` them — Tailwind v4 only applies utilities.
+ */
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-sm font-bold text-sm uppercase tracking-wide px-4 py-3 min-h-11 transition-colors duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed;
+}
+@utility badge {
+  @apply inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm font-mono text-[10px] font-semibold uppercase tracking-wider border;
 }
 
 @layer components {
+  /* Typography helpers */
+  .display {
+    @apply font-extrabold uppercase leading-none tracking-tight;
+    font-stretch: 72%;
+  }
+  /* Numbers that matter — weights, reps, streaks — set in mono so columns line up. */
+  .num {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+  /* Small uppercase mono label: dates, units, column heads. */
+  .eyebrow {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted;
+  }
+  /* Hairline section rules — the logbook replacement for nesting everything in cards. */
+  .rule { @apply border-t border-surface-border; }
+  .rule-heavy { @apply border-t-2 border-ink; }
+
   /* Surfaces */
   .card {
-    @apply bg-surface border border-surface-border rounded-2xl shadow-card;
+    @apply bg-surface border border-surface-border rounded-sm;
   }
   .card-pad {
-    @apply bg-surface border border-surface-border rounded-2xl shadow-card p-5;
+    @apply bg-surface border border-surface-border rounded-sm p-4;
   }
   .stat-tile {
-    @apply bg-surface border border-surface-border rounded-2xl shadow-card p-5 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5;
+    @apply bg-surface border border-surface-border rounded-sm p-4 flex flex-col gap-1;
   }
   .stat-tile-accent {
-    @apply rounded-2xl shadow-card p-5 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5 border border-accent-500/30;
-    background: linear-gradient(150deg, rgba(3, 172, 143, 0.16), rgba(3, 172, 143, 0.03) 60%);
+    @apply bg-surface border border-surface-border border-l-2 border-l-accent-500 rounded-sm p-4 flex flex-col gap-1;
   }
-  .stat-tile-lime {
-    @apply rounded-2xl shadow-card p-5 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5 border border-lime-500/30;
-    background: linear-gradient(150deg, rgba(198, 255, 94, 0.14), rgba(198, 255, 94, 0.02) 60%);
-  }
-  .stat-tile-violet {
-    @apply rounded-2xl shadow-card p-5 flex flex-col gap-1 transition-transform duration-200 hover:-translate-y-0.5 border border-violet-500/30;
-    background: linear-gradient(150deg, rgba(139, 92, 246, 0.16), rgba(139, 92, 246, 0.03) 60%);
+  .stat-tile-mark {
+    @apply bg-surface border border-surface-border border-l-2 border-l-mark-500 rounded-sm p-4 flex flex-col gap-1;
   }
 
-  /* Buttons */
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97];
-  }
+  /* Buttons — primary is a solid signal-orange slab; everything else stays quiet. */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] bg-transparent text-accent border border-accent hover:bg-accent-500/10;
+    @apply btn bg-accent-500 text-canvas-950 border border-accent-500 hover:bg-accent-400 active:bg-accent-600;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] bg-surface-hover text-ink border border-surface-border hover:border-ink-faint;
+    @apply btn bg-transparent text-ink border border-surface-border hover:border-ink-faint active:bg-surface-hover;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] bg-transparent text-ink-muted hover:text-ink hover:bg-surface-hover;
+    @apply btn bg-transparent text-ink-muted hover:text-ink hover:bg-surface-hover;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm px-4 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25;
+    @apply btn bg-transparent text-red-400 border border-red-500/50 hover:bg-red-500/10;
   }
   .btn-icon {
-    @apply inline-flex items-center justify-center w-10 h-10 rounded-xl text-ink-muted hover:text-ink hover:bg-surface-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400;
+    @apply inline-flex items-center justify-center w-11 h-11 rounded-sm text-ink-muted hover:text-ink hover:bg-surface-hover transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400;
   }
 
   /* Forms */
   .field-label {
-    @apply block text-xs font-semibold uppercase tracking-wide text-ink-muted mb-1.5;
+    @apply block font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-ink-muted mb-1.5;
   }
   .field-input {
-    @apply w-full px-3.5 py-2.5 rounded-xl bg-canvas-800 border border-surface-border text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-colors;
+    @apply w-full px-3 py-2.5 rounded-sm bg-canvas-800 border border-surface-border text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 transition-colors;
+  }
+  /* Numbers being typed line up with the logged numbers shown everywhere else. */
+  .field-input[type="number"],
+  .field-input[inputmode="decimal"],
+  .field-input[inputmode="numeric"] {
+    @apply font-mono tabular-nums;
   }
   .field-error {
     @apply text-red-400 text-xs mt-1.5;
   }
 
-  /* Badges / chips */
-  .badge {
-    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold;
+  /* Badges / tags — square, mono, uppercase: they read as stamped labels, not pills. */
+  .badge-mark { @apply badge border-mark-500/50 text-mark-500 bg-mark-500/10; }
+  .badge-accent { @apply badge border-accent-500/50 text-accent-400 bg-accent-500/10; }
+  .badge-muted { @apply badge border-surface-border text-ink-muted bg-transparent; }
+  .badge-warn { @apply badge border-amber-500/50 text-amber-400 bg-amber-500/10; }
+  .badge-danger { @apply badge border-red-500/50 text-red-400 bg-red-500/10; }
+
+  /* Filter / option chips — square stamped tags; `chip-on` marks the selected one. */
+  .chip {
+    @apply inline-flex items-center justify-center min-h-9 rounded-sm border border-surface-border bg-transparent font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-muted transition-colors;
   }
-  .badge-lime { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-lime-500/15 text-lime-500; }
-  .badge-accent { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-accent-500/15 text-accent-400; }
-  .badge-muted { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-surface-hover text-ink-muted; }
-  .badge-warn { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400; }
-  .badge-danger { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/15 text-red-400; }
-  .badge-violet { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-500/15 text-violet-400; }
-  .badge-cyan { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-500/15 text-cyan-400; }
-  .badge-pink { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-pink-500/15 text-pink-400; }
+  .chip-on {
+    @apply border-accent-500 bg-accent-500 text-canvas-950;
+  }
 
   /* Modal */
   .modal-overlay {
-    @apply fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-[60] p-0 sm:p-4 overscroll-contain;
+    @apply fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center z-[60] p-0 sm:p-4 overscroll-contain;
   }
   .modal-panel {
-    @apply bg-surface border border-surface-border shadow-card w-full sm:max-w-md rounded-t-2xl rounded-b-none sm:rounded-2xl max-h-[92vh] overflow-y-auto overscroll-contain;
+    @apply bg-canvas border-t-2 border-t-ink sm:border sm:border-surface-border w-full sm:max-w-md rounded-none sm:rounded-sm max-h-[92vh] overflow-y-auto overscroll-contain;
   }
 
   /* Alert banner */
   .alert-error {
-    @apply bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center justify-between gap-3;
+    @apply bg-red-500/10 border border-red-500/40 rounded-sm p-4 flex items-center justify-between gap-3;
   }
 
   /* Section heading row */

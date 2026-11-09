@@ -2,9 +2,9 @@ import { useUIStore } from '@/stores/ui'
 import { TABS } from './tabs'
 
 /**
- * Fixed bottom tab bar shown on mobile viewports (hidden on sm+), mirroring the
- * native-app navigation pattern of apps like Strava. Drives the same UI store tab
- * state as TopBar so both stay in sync.
+ * Fixed bottom tab bar shown on mobile viewports (hidden on sm+), with the active tab
+ * marked by an orange bar sitting on the heavy top rule, like a tab divider in a binder.
+ * Drives the same UI store tab state as TopBar so both stay in sync.
  */
 export function BottomNav() {
   const activeTab = useUIStore((s) => s.activeTab)
@@ -12,7 +12,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="sm:hidden fixed bottom-0 inset-x-0 z-40 pwa-safe-bottom bg-surface/95 backdrop-blur-lg border-t border-surface-border"
+      className="sm:hidden fixed bottom-0 inset-x-0 z-40 pwa-safe-bottom bg-canvas border-t-2 border-ink"
       aria-label="Primary"
     >
       <div className="grid grid-cols-5">
@@ -24,26 +24,15 @@ export function BottomNav() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               aria-current={active ? 'page' : undefined}
-              className="flex flex-col items-center justify-center gap-1 py-2.5 focus:outline-none"
+              className={
+                active
+                  ? 'relative flex flex-col items-center justify-center gap-1 pt-2.5 pb-2 min-h-14 text-accent-500 focus:outline-none focus-visible:bg-surface-hover'
+                  : 'relative flex flex-col items-center justify-center gap-1 pt-2.5 pb-2 min-h-14 text-ink-faint focus:outline-none focus-visible:bg-surface-hover'
+              }
             >
-              <span
-                className={
-                  active
-                    ? 'w-9 h-7 flex items-center justify-center rounded-full transition-colors bg-accent-500/15 text-accent-400'
-                    : 'w-9 h-7 flex items-center justify-center rounded-full transition-colors text-ink-faint'
-                }
-              >
-                <Icon size={20} strokeWidth={2} />
-              </span>
-              <span
-                className={
-                  active
-                    ? 'text-[10px] font-semibold tracking-tight text-accent-400'
-                    : 'text-[10px] font-semibold tracking-tight text-ink-faint'
-                }
-              >
-                {tab.label}
-              </span>
+              {active && <span className="absolute -top-0.5 inset-x-3 h-1 bg-accent-500" aria-hidden="true" />}
+              <Icon size={20} strokeWidth={active ? 2.25 : 1.75} />
+              <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em]">{tab.label}</span>
             </button>
           )
         })}

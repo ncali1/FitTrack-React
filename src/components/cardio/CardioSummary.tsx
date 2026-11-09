@@ -63,7 +63,7 @@ export function CardioSummary() {
   return (
     <div className="space-y-3">
       <div className="card p-3.5">
-        <div className="text-xs text-ink-muted mb-2.5">This week</div>
+        <div className="eyebrow mb-2.5">This week</div>
         <div className="grid grid-cols-3 gap-2">
           {stats.map((stat) => (
             <div key={stat.label} data-testid={`cardio-stat-${stat.label.toLowerCase()}`}>

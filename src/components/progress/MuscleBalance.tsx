@@ -24,13 +24,13 @@ export function MuscleBalance({ data }: { data: MuscleGroupSets[] }) {
           <span className={`text-xs font-medium w-20 flex-none truncate ${muscleGroupStyle(group).text}`}>
             {group}
           </span>
-          <div className="flex-1 h-2 rounded-full bg-canvas-800 overflow-hidden">
+          <div className="flex-1 h-2 rounded-sm bg-canvas-800 overflow-hidden">
             <div
-              className={`h-full rounded-full ${muscleGroupStyle(group).bar}`}
+              className={`h-full rounded-sm ${muscleGroupStyle(group).bar}`}
               style={{ width: `${(sets / max) * 100}%` }}
             />
           </div>
-          <span className="text-xs text-ink-muted w-14 flex-none text-right">
+          <span className="num text-xs text-ink-muted w-14 flex-none text-right">
             {sets} set{sets === 1 ? '' : 's'}
           </span>
         </div>

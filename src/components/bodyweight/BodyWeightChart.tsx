@@ -13,11 +13,10 @@ import {
 import { useSettingsStore } from '@/stores/settings'
 import { fromKg } from '@/utils/units'
 import type { BodyWeightLog } from '@/types'
+import { chartTheme } from '@/components/progress/chartTheme'
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip, Legend)
 
-const GRID_COLOR = 'rgba(245, 246, 248, 0.06)'
-const TICK_COLOR = '#9a9ea9'
 
 /** Formats a YYYY-MM-DD string as a short month + day label, e.g. "Jan 6". */
 function formatLabel(dateStr: string): string {
@@ -32,6 +31,7 @@ function formatLabel(dateStr: string): string {
  * bucketing.
  */
 export function BodyWeightChart({ logs }: { logs: BodyWeightLog[] }) {
+  const theme = chartTheme()
   const weightUnit = useSettingsStore((s) => s.weightUnit)
 
   const sortedLogs = [...logs].sort((a, b) => a.date.localeCompare(b.date))
@@ -39,7 +39,7 @@ export function BodyWeightChart({ logs }: { logs: BodyWeightLog[] }) {
 
   return (
     <div className="card-pad">
-      <h3 className="mb-4 text-sm font-semibold text-ink-muted uppercase tracking-wide">
+      <h3 className="eyebrow mb-4">
         Body Weight Over Time ({weightUnit})
       </h3>
       {!hasData ? (
@@ -53,14 +53,11 @@ export function BodyWeightChart({ logs }: { logs: BodyWeightLog[] }) {
                 {
                   label: `Body Weight (${weightUnit})`,
                   data: sortedLogs.map((l) => fromKg(l.weightKg, weightUnit)),
-                  borderColor: '#c6ff5e',
-                  backgroundColor: 'rgba(198, 255, 94, 0.12)',
-                  pointBackgroundColor: '#c6ff5e',
-                  pointBorderColor: '#0a0b0f',
-                  pointRadius: 4,
-                  pointHoverRadius: 6,
-                  borderWidth: 2.5,
-                  tension: 0.35,
+                  borderColor: theme.line,
+                  backgroundColor: theme.fill,
+                  ...theme.point,
+                  borderWidth: 2,
+                  tension: theme.tension,
                   fill: true,
                 },
               ],
@@ -72,23 +69,17 @@ export function BodyWeightChart({ logs }: { logs: BodyWeightLog[] }) {
                 legend: { display: false },
                 tooltip: {
                   enabled: true,
-                  backgroundColor: '#1c1e28',
-                  titleColor: '#f5f6f8',
-                  bodyColor: '#f5f6f8',
-                  borderColor: '#262835',
-                  borderWidth: 1,
-                  padding: 10,
-                  cornerRadius: 8,
+                  ...theme.tooltip,
                 },
               },
               scales: {
                 y: {
-                  grid: { color: GRID_COLOR },
-                  ticks: { color: TICK_COLOR },
+                  grid: theme.grid,
+                  ticks: theme.ticks,
                 },
                 x: {
                   grid: { display: false },
-                  ticks: { color: TICK_COLOR },
+                  ticks: theme.ticks,
                 },
               },
             }}

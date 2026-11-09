@@ -22,7 +22,7 @@ function statusIcon(breakdown: Breakdown, day: string): string {
 function statusClass(breakdown: Breakdown, day: string): string {
   const data = breakdown[day]
   if (!data || data.assigned === 0) return 'bg-surface-hover text-ink-faint'
-  if (data.completed === data.assigned) return 'bg-lime-500 text-base-900 font-bold'
+  if (data.completed === data.assigned) return 'bg-mark-500 text-canvas-950 font-bold'
   if (data.completed > 0) return 'bg-amber-500/20 text-amber-400 font-bold'
   return 'bg-red-500/15 text-red-400 font-bold'
 }
@@ -43,7 +43,7 @@ export function DayBreakdown({ breakdown }: { breakdown: Breakdown }) {
             <span className="text-[10px] font-semibold text-ink-faint uppercase mb-2 tracking-wide">{day.label}</span>
             <div className="flex flex-col items-center gap-1.5">
               <span
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${statusClass(breakdown, day.key)}`}
+                className={`w-7 h-7 rounded-sm flex items-center justify-center text-xs ${statusClass(breakdown, day.key)}`}
                 title={statusTitle(breakdown, day.key)}
               >
                 {statusIcon(breakdown, day.key)}

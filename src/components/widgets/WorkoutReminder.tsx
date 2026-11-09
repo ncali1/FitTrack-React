@@ -5,6 +5,7 @@ import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { useSettingsStore } from '@/stores/settings'
 import { useRestTimerStore } from '@/stores/restTimer'
 import { shouldNudgeToday } from '@/utils/reminders'
+import { Dumbbell } from 'lucide-react'
 
 const LAST_NUDGE_KEY = 'fittrack-last-nudge-date'
 
@@ -109,8 +110,8 @@ export function WorkoutReminder() {
 
   return (
     <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 w-full max-w-sm pwa-safe-top">
-      <div className="card p-4 flex items-start gap-3 border-accent-500/40 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.7)]">
-        <div className="w-9 h-9 rounded-xl bg-accent-500/15 flex items-center justify-center flex-shrink-0 text-lg">💪</div>
+      <div className="bg-canvas border border-surface-border border-l-4 border-l-accent-500 rounded-sm p-4 flex items-start gap-3">
+        <Dumbbell size={20} strokeWidth={2} className="text-accent-500 flex-shrink-0 mt-0.5" aria-hidden="true" />
 
         {mode === 'ask' ? (
           <div className="flex-1">

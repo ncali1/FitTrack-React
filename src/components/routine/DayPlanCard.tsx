@@ -3,8 +3,8 @@ import type { Exercise, WorkoutTemplate } from '@/types'
 
 const toggleClass = (active: boolean) =>
   active
-    ? 'px-3 py-1.5 rounded-full text-xs font-semibold bg-accent text-canvas border border-accent'
-    : 'px-3 py-1.5 rounded-full text-xs font-semibold bg-transparent text-ink-muted border border-surface-border'
+    ? 'px-3 py-1.5 chip chip-on'
+    : 'px-3 py-1.5 chip'
 
 /**
  * One day's card in the plan builder: chips for the routines and individual exercises

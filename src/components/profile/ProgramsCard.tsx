@@ -73,8 +73,8 @@ export function ProgramsCard({ onError }: { onError: (message: string) => void }
               aria-pressed={program.isActive}
               className={
                 program.isActive
-                  ? 'px-3 py-1.5 rounded-full text-xs font-semibold bg-accent text-canvas border border-accent'
-                  : 'px-3 py-1.5 rounded-full text-xs font-semibold bg-transparent text-ink-muted border border-surface-border'
+                  ? 'px-3 py-1.5 chip chip-on'
+                  : 'px-3 py-1.5 chip'
               }
             >
               {program.name}

@@ -15,6 +15,7 @@ import { Onboarding } from '@/components/onboarding/Onboarding'
 import { InstallPrompt } from '@/components/widgets/InstallPrompt'
 import { RestTimer } from '@/components/widgets/RestTimer'
 import { WorkoutReminder } from '@/components/widgets/WorkoutReminder'
+import { AlertTriangle } from 'lucide-react'
 
 // Lazy-loaded — Chart.js is the single biggest dependency in the app; splitting it out
 // keeps it out of every other tab's initial bundle, only fetched when Progress is opened.
@@ -103,10 +104,10 @@ function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-5">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center shadow-glow animate-pulse">
-          <span className="text-white font-extrabold text-xl">FT</span>
-        </div>
-        <p className="text-ink-muted text-sm font-medium tracking-wide">Loading your training data…</p>
+        <span className="display text-4xl text-ink">
+          Fit<span className="text-accent-500">Track</span>
+        </span>
+        <p className="eyebrow animate-pulse">Loading training log…</p>
       </div>
     )
   }
@@ -114,7 +115,7 @@ function App() {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-5 p-8">
-        <div className="text-4xl">⚠️</div>
+        <AlertTriangle size={36} strokeWidth={1.75} className="text-accent-500" aria-hidden="true" />
         <p className="text-ink text-center max-w-md">{error}</p>
         <button className="btn-primary" onClick={() => initializeApp()}>
           Retry

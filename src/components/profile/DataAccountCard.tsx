@@ -52,7 +52,7 @@ export function DataAccountCard() {
         {cloudEnabled && (
           <div className="flex items-center justify-between py-2.5 first:pt-0">
             <span className="text-sm text-ink">Cloud sync</span>
-            {user ? <span className="badge-lime">Synced</span> : <span className="text-xs text-ink-faint">Not signed in</span>}
+            {user ? <span className="badge-mark">Synced</span> : <span className="text-xs text-ink-faint">Not signed in</span>}
           </div>
         )}
 

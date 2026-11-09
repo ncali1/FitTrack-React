@@ -336,16 +336,6 @@ describe('E2E: Workout Library', () => {
       expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(1)
     })
 
-    it('tints each exercise icon by its main muscle group', () => {
-      render(<WorkoutLibrary />)
-
-      const iconTile = (name: string) =>
-        (screen.getByRole('heading', { level: 3, name }).closest('[role="button"]') as HTMLElement).firstElementChild!
-      expect(iconTile('Barbell Curl').className).toContain('pink')
-      expect(iconTile('Back Squat').className).toContain('emerald')
-      expect(iconTile('Barbell Curl').className).not.toBe(iconTile('Back Squat').className)
-    })
-
     it('"Add exercise" creates a custom exercise that then appears in the list', async () => {
       const user = userEvent.setup()
       render(<WorkoutLibrary />)

@@ -12,11 +12,10 @@ import {
 } from 'chart.js'
 import { useSettingsStore } from '@/stores/settings'
 import { fromKg } from '@/utils/units'
+import { chartTheme } from './chartTheme'
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip, Legend)
 
-const GRID_COLOR = 'rgba(245, 246, 248, 0.06)'
-const TICK_COLOR = '#9a9ea9'
 
 interface WeeklyDataPoint {
   weekLabel: string
@@ -30,13 +29,14 @@ interface WeeklyDataPoint {
  * when at least one data point has a non-null weight; otherwise a placeholder is shown.
  */
 export function WeightChart({ data, exerciseName }: { data: WeeklyDataPoint[]; exerciseName: string }) {
+  const theme = chartTheme()
   const weightUnit = useSettingsStore((s) => s.weightUnit)
 
   const hasWeightData = data.length > 0 && data.some((d) => d.averageWeight !== null)
 
   return (
     <div className="card-pad">
-      <h3 className="mb-4 text-sm font-semibold text-ink-muted uppercase tracking-wide">
+      <h3 className="eyebrow mb-4">
         Weight Over Time ({weightUnit})
       </h3>
       {!hasWeightData ? (
@@ -50,14 +50,11 @@ export function WeightChart({ data, exerciseName }: { data: WeeklyDataPoint[]; e
                 {
                   label: `${exerciseName} - Weight (${weightUnit})`,
                   data: data.map((d) => fromKg(d.averageWeight, weightUnit)),
-                  borderColor: '#03ac8f',
-                  backgroundColor: 'rgba(3, 172, 143, 0.12)',
-                  pointBackgroundColor: '#03ac8f',
-                  pointBorderColor: '#0a0b0f',
-                  pointRadius: 4,
-                  pointHoverRadius: 6,
-                  borderWidth: 2.5,
-                  tension: 0.35,
+                  borderColor: theme.line,
+                  backgroundColor: theme.fill,
+                  ...theme.point,
+                  borderWidth: 2,
+                  tension: theme.tension,
                   fill: true,
                   spanGaps: true,
                 },
@@ -70,24 +67,18 @@ export function WeightChart({ data, exerciseName }: { data: WeeklyDataPoint[]; e
                 legend: { display: false },
                 tooltip: {
                   enabled: true,
-                  backgroundColor: '#1c1e28',
-                  titleColor: '#f5f6f8',
-                  bodyColor: '#f5f6f8',
-                  borderColor: '#262835',
-                  borderWidth: 1,
-                  padding: 10,
-                  cornerRadius: 8,
+                  ...theme.tooltip,
                 },
               },
               scales: {
                 y: {
                   beginAtZero: true,
-                  grid: { color: GRID_COLOR },
-                  ticks: { color: TICK_COLOR },
+                  grid: theme.grid,
+                  ticks: theme.ticks,
                 },
                 x: {
                   grid: { display: false },
-                  ticks: { color: TICK_COLOR },
+                  ticks: theme.ticks,
                 },
               },
             }}

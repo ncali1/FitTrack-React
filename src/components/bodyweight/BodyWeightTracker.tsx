@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Scale, Trash2 } from 'lucide-react'
 import { useBodyWeightStore } from '@/stores/bodyWeight'
 import { useSettingsStore } from '@/stores/settings'
 import { formatWeight } from '@/utils/units'
@@ -91,7 +91,7 @@ export function BodyWeightTracker() {
 
             {recentLogs.length === 0 ? (
               <div className="text-center py-10">
-                <div className="empty-blob !w-16 !h-16 !text-3xl animate-float">⚖️</div>
+                <div className="empty-blob"><Scale size={22} strokeWidth={1.75} /></div>
                 <p className="text-ink-faint text-sm">No entries yet — log your weight above.</p>
               </div>
             ) : (

@@ -44,6 +44,19 @@ export function addDays(dateStr: string, n: number): string {
   return toDateString(d)
 }
 
+/**
+ * ISO-8601 week number (1–53) for a YYYY-MM-DD date — weeks start on Monday, and week 1
+ * is the one containing the year's first Thursday. Used to stamp "WK 45" on the log page.
+ */
+export function getIsoWeek(dateStr: string): number {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const d = new Date(Date.UTC(year!, month! - 1, day!))
+  const dow = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dow)
+  const yearStart = Date.UTC(d.getUTCFullYear(), 0, 1)
+  return Math.ceil(((d.getTime() - yearStart) / 86_400_000 + 1) / 7)
+}
+
 // ── Weekly Summary ──────────────────────────────────────────────────────
 
 /** Calculates the weekly summary for the week starting on weekStartStr (Monday). */

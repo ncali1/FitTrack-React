@@ -77,12 +77,9 @@ export function AuthGate({ onSkip }: { onSkip: () => void }) {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <img
-            src={`${import.meta.env.BASE_URL}icons/icon-192.png`}
-            alt=""
-            className="w-14 h-14 rounded-2xl mb-4"
-          />
-          <h1 className="text-ink">FitTrack</h1>
+          <h1 className="text-5xl text-ink">
+            Fit<span className="text-accent-500">Track</span>
+          </h1>
           <p className="text-ink-muted text-sm mt-1">{modeLabel}</p>
         </div>
 
@@ -135,8 +132,8 @@ export function AuthGate({ onSkip }: { onSkip: () => void }) {
               </div>
             )}
             {infoMessage && (
-              <div className="bg-lime-500/10 border border-lime-500/30 rounded-xl p-3">
-                <p className="text-lime-500 text-sm">{infoMessage}</p>
+              <div className="bg-mark-500/10 border border-mark-500/30 rounded-xl p-3">
+                <p className="text-mark-500 text-sm">{infoMessage}</p>
               </div>
             )}
 
@@ -169,8 +166,8 @@ export function AuthGate({ onSkip }: { onSkip: () => void }) {
               </div>
             )}
             {infoMessage && (
-              <div className="bg-lime-500/10 border border-lime-500/30 rounded-xl p-3">
-                <p className="text-lime-500 text-sm">{infoMessage}</p>
+              <div className="bg-mark-500/10 border border-mark-500/30 rounded-xl p-3">
+                <p className="text-mark-500 text-sm">{infoMessage}</p>
               </div>
             )}
 

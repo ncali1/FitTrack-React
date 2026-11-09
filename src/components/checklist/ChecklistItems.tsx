@@ -36,9 +36,10 @@ export function ChecklistItems({
   }
 
   return (
-    <div className="space-y-2.5 stagger-children">
-      {items.map((item) => (
-        <div key={item.exerciseId} className="flex items-start gap-3 p-4 card card-hover animate-pop-in">
+    <ol className="border-y border-surface-border divide-y divide-surface-border">
+      {items.map((item, index) => (
+        <li key={item.exerciseId} className="flex items-start gap-3 py-3.5">
+          <span className="num text-xs text-ink-faint w-5 pt-1.5">{String(index + 1).padStart(2, '0')}</span>
           {/* Checkbox */}
           <button
             id={`exercise-${item.exerciseId}`}
@@ -48,21 +49,21 @@ export function ChecklistItems({
             onClick={() => onToggle(item.exerciseId, !item.completed)}
             className={
               item.completed
-                ? 'mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-90 bg-lime-500 border-lime-500 shadow-[0_0_0_4px_rgba(198,255,94,0.15)]'
-                : 'mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all active:scale-90 border-surface-border hover:border-ink-faint'
+                ? 'order-last w-8 h-8 rounded-sm border-2 flex items-center justify-center flex-shrink-0 transition-colors bg-mark-500 border-mark-500 text-canvas-950'
+                : 'order-last w-8 h-8 rounded-sm border-2 flex items-center justify-center flex-shrink-0 transition-colors border-ink-faint hover:border-ink'
             }
           >
             {item.completed && (
               <svg
                 key={item.performance?.timestamp ?? 'checked'}
                 viewBox="0 0 24 24"
-                width="14"
-                height="14"
+                width="18"
+                height="18"
                 fill="none"
-                stroke="#0a0b0f"
+                stroke="currentColor"
                 strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                strokeLinecap="square"
+                strokeLinejoin="miter"
                 className="animate-check-bounce"
               >
                 <path d="m5 12 5 5L19 8" />
@@ -77,20 +78,21 @@ export function ChecklistItems({
             onClick={() => onToggle(item.exerciseId, !item.completed)}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className={`font-semibold text-sm ${item.completed ? 'line-through text-ink-faint' : 'text-ink'}`}>
+              <span className={`font-semibold ${item.completed ? 'line-through decoration-mark-500 decoration-2 text-ink-faint' : 'text-ink'}`}>
                 {item.exerciseName}
               </span>
-              {item.completed && <span className="badge-lime flex-shrink-0">Done</span>}
             </div>
             <div className="text-xs text-ink-muted mt-1">
-              {item.targetSets} sets × {item.targetReps} reps
+              <span className="num">
+                {item.targetSets}×{item.targetReps}
+              </span>
               {item.targetMuscleGroups.length > 0 && <span className="ml-1">· {item.targetMuscleGroups.join(', ')}</span>}
             </div>
-            {item.notes && <div className="text-xs text-ink-faint mt-1 line-clamp-1">📝 {item.notes}</div>}
+            {item.notes && <div className="text-xs text-ink-faint mt-1 line-clamp-1">{item.notes}</div>}
             {/* Logged performance summary */}
             {item.completed && item.performance && (
-              <div className="text-xs text-accent-400 mt-1.5 font-medium flex items-center gap-1.5 flex-wrap">
-                <span>
+              <div className="text-xs text-mark-500 mt-1.5 flex items-center gap-1.5 flex-wrap">
+                <span className="num">
                   {item.performance.actualSets} sets × {item.performance.actualReps} reps
                   {item.performance.weight != null && (
                     <> @ {formatWeight(item.performance.weight, weightUnit)}{weightUnit}</>
@@ -98,13 +100,13 @@ export function ChecklistItems({
                   · {item.performance.difficultyLevel}
                   {item.performance.rpe != null && <> · RPE {item.performance.rpe}</>}
                 </span>
-                {(item.isWeightPR || item.isRepsPR) && <span className="badge-lime !py-0.5">🏆 PR</span>}
-                {item.performance.isWarmup && <span className="badge-muted !py-0.5">Warm-up</span>}
+                {(item.isWeightPR || item.isRepsPR) && <span className="badge-mark">PR</span>}
+                {item.performance.isWarmup && <span className="badge-muted">Warm-up</span>}
               </div>
             )}
           </label>
-        </div>
+        </li>
       ))}
-    </div>
+    </ol>
   )
 }
