@@ -95,9 +95,9 @@ export function InstallPrompt() {
 
   return (
     <div className="fixed left-4 right-4 bottom-24 sm:bottom-4 sm:left-auto sm:right-4 sm:w-80 z-50 pwa-safe-bottom">
-      <div className="card p-4 flex gap-3 items-start shadow-[0_16px_48px_-12px_rgba(0,0,0,0.7)]">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center flex-shrink-0">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <div className="bg-canvas border border-surface-border border-l-4 border-l-accent-500 rounded-sm p-4 flex gap-3 items-start">
+        <div className="w-10 h-10 bg-accent-500 text-canvas-950 flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 3v13m0 0-4-4m4 4 4-4M5 21h14" />
           </svg>
         </div>

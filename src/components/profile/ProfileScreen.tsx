@@ -44,7 +44,7 @@ export function ProfileScreen() {
       )}
 
       <div className="flex items-center gap-3">
-        <div className="w-14 h-14 rounded-full bg-accent-800 text-accent-100 flex items-center justify-center text-xl font-semibold flex-none">
+        <div className="w-14 h-14 rounded-sm bg-accent-800 text-accent-100 flex items-center justify-center text-xl font-semibold flex-none">
           {initial}
         </div>
         <div className="min-w-0">

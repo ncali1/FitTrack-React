@@ -129,11 +129,7 @@ export function CardioForm({
                   type="button"
                   onClick={() => setType(option)}
                   aria-pressed={type === option}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
-                    type === option
-                      ? 'bg-accent text-canvas border-accent'
-                      : 'bg-transparent text-ink-muted border-surface-border'
-                  }`}
+                  className={type === option ? 'chip chip-on px-3' : 'chip px-3'}
                 >
                   {CARDIO_TYPES[option].label}
                 </button>

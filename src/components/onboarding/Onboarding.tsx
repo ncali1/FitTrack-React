@@ -56,7 +56,7 @@ export function Onboarding({ onFinish }: { onFinish: () => void }) {
       </div>
 
       <div className="flex-1 flex flex-col justify-center gap-5">
-        <div className="w-[72px] h-[72px] rounded-[20px] border border-accent flex items-center justify-center">
+        <div className="w-[72px] h-[72px] border-2 border-accent flex items-center justify-center">
           <Icon size={34} strokeWidth={1.75} className="text-accent" />
         </div>
 
@@ -74,8 +74,8 @@ export function Onboarding({ onFinish }: { onFinish: () => void }) {
                 aria-pressed={goal === option}
                 className={
                   goal === option
-                    ? 'text-left px-4 py-3.5 rounded-xl text-sm min-h-11 bg-accent-500/15 border border-accent text-ink'
-                    : 'text-left px-4 py-3.5 rounded-xl text-sm min-h-11 bg-surface border border-surface-border text-ink'
+                    ? 'text-left px-4 py-3.5 rounded-sm text-sm font-medium min-h-11 bg-accent-500 border border-accent-500 text-canvas-950'
+                    : 'text-left px-4 py-3.5 rounded-sm text-sm min-h-11 border border-surface-border text-ink'
                 }
               >
                 {option}
@@ -95,10 +95,10 @@ export function Onboarding({ onFinish }: { onFinish: () => void }) {
               aria-checked={remindersEnabled === true}
               aria-label="Daily reminders"
               onClick={() => setRemindersEnabled(!remindersEnabled)}
-              className={`w-11 h-6 rounded-full p-0.5 transition-colors flex-none ${remindersEnabled ? 'bg-accent' : 'bg-canvas-800'}`}
+              className={`w-11 h-6 rounded-sm p-0.5 transition-colors flex-none ${remindersEnabled ? 'bg-accent' : 'bg-canvas-800'}`}
             >
               <div
-                className={`w-5 h-5 rounded-full bg-white transition-transform ${remindersEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                className={`w-5 h-5 rounded-sm bg-ink transition-transform ${remindersEnabled ? 'translate-x-5' : 'translate-x-0'}`}
               />
             </button>
           </div>
@@ -110,7 +110,7 @@ export function Onboarding({ onFinish }: { onFinish: () => void }) {
           {STEPS.map((_, i) => (
             <div
               key={i}
-              className={`h-1.5 rounded-full transition-[width] ${i === step ? 'w-[18px] bg-accent' : 'w-1.5 bg-canvas-800'}`}
+              className={`h-1.5 rounded-sm transition-[width] ${i === step ? 'w-[18px] bg-accent' : 'w-1.5 bg-canvas-800'}`}
             />
           ))}
         </div>

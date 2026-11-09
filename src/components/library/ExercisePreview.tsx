@@ -24,8 +24,8 @@ const ExercisePreview3D = lazy<ComponentType<Preview3DProps>>(() =>
 
 /**
  * The best available exercise preview: a 3D character looping the movement when the
- * exercise has a movement pattern and the device can draw WebGL, otherwise the animated 2D
- * MuscleBodyDiagram (also shown while the 3D chunk loads).
+ * device can draw WebGL — standing still on the turntable for a custom exercise with no
+ * movement pattern — otherwise the 2D MuscleBodyDiagram (also shown while the 3D chunk loads).
  */
 export function ExercisePreview({
   targetMuscleGroups,
@@ -38,7 +38,7 @@ export function ExercisePreview({
   const handleError = useCallback(() => setFailed(true), [])
   const diagram = <MuscleBodyDiagram targetMuscleGroups={targetMuscleGroups} pattern={pattern} />
 
-  if (failed || !pattern || !supportsWebGL()) return diagram
+  if (failed || !supportsWebGL()) return diagram
 
   return (
     <div
@@ -47,7 +47,7 @@ export function ExercisePreview({
       className="h-56 rounded-xl bg-canvas-800 border border-surface-border overflow-hidden"
     >
       <Suspense fallback={<div className="h-full flex items-center justify-center">{diagram}</div>}>
-        <ExercisePreview3D pattern={pattern} targetMuscleGroups={targetMuscleGroups} onError={handleError} />
+        <ExercisePreview3D pattern={pattern ?? 'stand'} targetMuscleGroups={targetMuscleGroups} onError={handleError} />
       </Suspense>
     </div>
   )

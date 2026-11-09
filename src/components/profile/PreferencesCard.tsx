@@ -6,9 +6,7 @@ const REST_PRESETS = [30, 60, 90, 120, 180]
 const MAX_REST_SECONDS = 900
 
 const chipClass = (active: boolean, size: 'sm' | 'md' = 'sm') =>
-  `${size === 'md' ? 'px-3' : 'px-2.5'} py-1 rounded-full text-xs font-semibold border ${
-    active ? 'bg-accent text-canvas border-accent' : 'bg-transparent text-ink-muted border-surface-border'
-  }`
+  `chip ${size === 'md' ? 'px-3' : 'px-2.5'}${active ? ' chip-on' : ''}`
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -29,9 +27,9 @@ function Switch({ label, checked, onChange }: { label: string; checked: boolean;
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={`flex-none w-11 h-6 rounded-full p-0.5 transition-colors ${checked ? 'bg-accent' : 'bg-canvas-800'}`}
+      className={`flex-none w-11 h-6 rounded-sm p-0.5 transition-colors ${checked ? 'bg-accent' : 'bg-canvas-800'}`}
     >
-      <div className={`w-5 h-5 rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+      <div className={`w-5 h-5 rounded-sm bg-ink transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
     </button>
   )
 }

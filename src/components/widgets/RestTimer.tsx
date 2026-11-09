@@ -38,18 +38,18 @@ export function RestTimer() {
         entered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       }`}
     >
-      <div className="card p-4 flex items-center gap-4 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.7)]">
+      <div className="bg-canvas border-2 border-accent-500 rounded-sm p-4 flex items-center gap-4">
         {/* Progress ring */}
         <svg viewBox="0 0 56 56" width="56" height="56" className="flex-shrink-0 -rotate-90">
-          <circle cx="28" cy="28" r={RADIUS} fill="none" stroke="#262835" strokeWidth="5" />
+          <circle cx="28" cy="28" r={RADIUS} fill="none" className="stroke-canvas-700" strokeWidth="5" />
           <circle
             cx="28"
             cy="28"
             r={RADIUS}
             fill="none"
-            stroke="#03ac8f"
+            className="stroke-accent-500"
             strokeWidth="5"
-            strokeLinecap="round"
+            strokeLinecap="butt"
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={dashOffset}
             style={{ transition: 'stroke-dashoffset 1s linear' }}
@@ -60,16 +60,16 @@ export function RestTimer() {
             transform="rotate(90 28 28)"
             textAnchor="middle"
             dominantBaseline="central"
-            fill="#f5f6f8"
+            className="fill-ink font-mono"
             fontSize="15"
-            fontWeight="700"
+            fontWeight="600"
           >
             {remaining}
           </text>
         </svg>
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-ink">Rest timer</p>
+          <p className="eyebrow">Rest timer</p>
           <div className="flex gap-1.5 mt-2">
             <button onClick={() => adjust(-15)} className="btn-secondary !px-2 !py-1 text-xs">
               -15s

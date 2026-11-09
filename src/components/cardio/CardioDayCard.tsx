@@ -30,7 +30,7 @@ export function CardioSessionRow({
       className="w-full flex items-center gap-3 py-2.5 first:pt-0 last:pb-0 text-left"
       aria-label={`Edit ${CARDIO_TYPES[session.type].label} cardio`}
     >
-      <div className="w-[34px] h-[34px] rounded-[10px] bg-red-500/15 flex items-center justify-center flex-none">
+      <div className="w-[34px] h-[34px] rounded-sm border border-surface-border flex items-center justify-center flex-none">
         <HeartPulse size={16} strokeWidth={2} className="text-red-400" />
       </div>
       <div className="flex-1 min-w-0">

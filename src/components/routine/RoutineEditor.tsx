@@ -179,7 +179,7 @@ export function RoutineEditor({ templateId, onClose }: { templateId: string; onC
                   key={ex.id}
                   onClick={() => save([...template.exerciseIds, ex.id])}
                   aria-label={`Add ${ex.name}`}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-transparent text-ink-muted border border-surface-border"
+                  className="px-3 py-1.5 chip"
                 >
                   + {ex.name}
                 </button>
@@ -216,7 +216,7 @@ export function RoutineEditor({ templateId, onClose }: { templateId: string; onC
                   key={workout.id}
                   onClick={() => addFromLibrary(workout)}
                   aria-label={`Add ${workout.name} from library`}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-transparent text-ink-muted border border-surface-border"
+                  className="px-3 py-1.5 chip"
                 >
                   + {workout.name}
                 </button>

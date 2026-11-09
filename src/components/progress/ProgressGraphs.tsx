@@ -19,6 +19,7 @@ import { ExerciseHistory } from './ExerciseHistory'
 import { BodyWeightChart } from '@/components/bodyweight/BodyWeightChart'
 import { BodyWeightLogForm } from '@/components/bodyweight/BodyWeightLogForm'
 import { CardioSummary } from '@/components/cardio/CardioSummary'
+import { TrendingUp } from 'lucide-react'
 
 function todayString(): string {
   const d = new Date()
@@ -126,7 +127,7 @@ export function ProgressGraphs() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center justify-between mb-2.5">
-          <h6 className="text-ink-muted text-sm">This week</h6>
+          <h6 className="eyebrow">This week</h6>
           {avgSessionMinutes !== null && (
             <span className="text-ink-faint text-xs">Avg session: {avgSessionMinutes}m</span>
           )}
@@ -135,21 +136,21 @@ export function ProgressGraphs() {
       </div>
 
       <div>
-        <h6 className="text-ink-muted text-sm mb-2.5">Cardio</h6>
+        <h6 className="eyebrow mb-2.5">Cardio</h6>
         <CardioSummary />
       </div>
 
       <div>
-        <h6 className="text-ink-muted text-sm mb-2.5">Muscle balance (last 4 weeks)</h6>
+        <h6 className="eyebrow mb-2.5">Muscle balance (last 4 weeks)</h6>
         <MuscleBalance data={muscleBalanceData} />
       </div>
 
       <div>
-        <h6 className="text-ink-muted text-sm mb-2.5">Exercise progress</h6>
+        <h6 className="eyebrow mb-2.5">Exercise progress</h6>
 
         {exercisesWithHistory.length === 0 ? (
           <div className="card-pad text-center py-12">
-            <div className="empty-blob animate-float">📈</div>
+            <div className="empty-blob"><TrendingUp size={22} strokeWidth={1.75} /></div>
             <p className="text-ink font-semibold">No exercises logged yet</p>
             <p className="text-ink-muted text-sm mt-1">Complete a workout in Train to see progress here.</p>
           </div>
@@ -163,8 +164,8 @@ export function ProgressGraphs() {
                   aria-pressed={selectedExercise === ex.id}
                   className={
                     selectedExercise === ex.id
-                      ? 'flex-none px-3.5 py-1.5 rounded-full text-xs font-semibold bg-accent text-canvas border border-accent'
-                      : 'flex-none px-3.5 py-1.5 rounded-full text-xs font-semibold bg-transparent text-ink-muted border border-surface-border'
+                      ? 'flex-none px-3.5 py-1.5 chip chip-on'
+                      : 'flex-none px-3.5 py-1.5 chip'
                   }
                 >
                   {ex.name}
@@ -177,10 +178,10 @@ export function ProgressGraphs() {
                 <div className="grid grid-cols-3 gap-2.5">
                   <div className="stat-tile !p-3.5">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted flex items-center gap-1">
-                      🏆 Best Weight
+                      Best Weight
                     </p>
                     {personalRecord.maxWeight !== null ? (
-                      <p className="text-xl font-extrabold text-ink mt-1">
+                      <p className="num text-xl font-semibold text-ink mt-1">
                         {formatWeight(personalRecord.maxWeight, weightUnit)}
                         <span className="text-sm text-ink-muted font-semibold">{weightUnit}</span>
                       </p>
@@ -193,10 +194,10 @@ export function ProgressGraphs() {
                   </div>
                   <div className="stat-tile !p-3.5">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted flex items-center gap-1">
-                      🏆 Best Reps
+                      Best Reps
                     </p>
                     {personalRecord.maxReps !== null ? (
-                      <p className="text-xl font-extrabold text-ink mt-1">{personalRecord.maxReps}</p>
+                      <p className="num text-xl font-semibold text-ink mt-1">{personalRecord.maxReps}</p>
                     ) : (
                       <p className="text-sm text-ink-faint mt-1">No reps logged</p>
                     )}
@@ -211,7 +212,7 @@ export function ProgressGraphs() {
                       Est. 1RM
                     </p>
                     {oneRepMax !== null ? (
-                      <p className="text-xl font-extrabold text-ink mt-1">
+                      <p className="num text-xl font-semibold text-ink mt-1">
                         {formatWeight(oneRepMax.estimated, weightUnit)}
                         <span className="text-sm text-ink-muted font-semibold">{weightUnit}</span>
                       </p>
@@ -239,7 +240,7 @@ export function ProgressGraphs() {
 
       <div>
         <div className="flex items-center justify-between mb-2.5">
-          <h6 className="text-ink-muted text-sm">Body weight</h6>
+          <h6 className="eyebrow">Body weight</h6>
           <button className="text-accent-400 text-xs font-semibold" onClick={() => setShowLogWeight((v) => !v)}>
             {showLogWeight ? 'Cancel' : '+ Log weight'}
           </button>

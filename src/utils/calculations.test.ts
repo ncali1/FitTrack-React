@@ -4,6 +4,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
+  getIsoWeek,
   getWeekStart,
   addDays,
   calculateWeeklySummary,
@@ -404,5 +405,21 @@ describe('a date overridden with a different routine (plannedExerciseIds)', () =
     ]
 
     expect(calculateStreak(routine, sessions, WEDNESDAY)).toBe(2)
+  })
+})
+
+describe('getIsoWeek', () => {
+  it('numbers weeks from the one containing the first Thursday', () => {
+    expect(getIsoWeek('2026-01-01')).toBe(1) // Thursday
+    expect(getIsoWeek('2026-11-06')).toBe(45)
+  })
+
+  it('assigns early-January days to the previous year’s last week', () => {
+    expect(getIsoWeek('2027-01-01')).toBe(53) // Friday; 2026 has 53 ISO weeks
+    expect(getIsoWeek('2021-01-03')).toBe(53) // Sunday
+  })
+
+  it('assigns late-December days to week 1 of the next year', () => {
+    expect(getIsoWeek('2024-12-30')).toBe(1) // Monday
   })
 })

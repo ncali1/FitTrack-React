@@ -51,8 +51,8 @@ export function TimeRangeSelector({ value, onChange }: { value: TimeRange; onCha
           onClick={() => selectPreset(preset)}
           className={
             activePreset === preset.label
-              ? 'px-3 py-2 rounded-xl text-sm font-semibold transition-colors bg-accent-500 text-white'
-              : 'px-3 py-2 rounded-xl text-sm font-semibold transition-colors bg-canvas-800 border border-surface-border text-ink-muted hover:border-ink-faint/50'
+              ? 'chip chip-on px-3'
+              : 'chip px-3'
           }
         >
           {preset.label}

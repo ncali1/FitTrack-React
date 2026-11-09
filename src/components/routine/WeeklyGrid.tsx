@@ -42,7 +42,7 @@ export function WeeklyGrid({
               <h3 className="font-semibold text-sm mb-3 text-ink capitalize flex items-center justify-between">
                 {day}
                 {dayExercises.length > 0 && (
-                  <span className={`w-2 h-2 rounded-full ${active ? 'bg-accent-500' : 'bg-lime-500'}`} />
+                  <span className={`w-2 h-2 rounded-sm ${active ? 'bg-accent-500' : 'bg-mark-500'}`} />
                 )}
               </h3>
 

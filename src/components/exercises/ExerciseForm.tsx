@@ -7,6 +7,7 @@ import type { Exercise } from '@/types'
 import { validateExerciseName, validateSets, validateReps, validateMuscleGroups } from '@/utils/validators'
 import { muscleGroupStyle } from '@/utils/muscleGroupStyles'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
+import { CUSTOM_POSE_NOTE } from '@/components/library/customPose'
 
 interface FormData {
   name: string
@@ -226,8 +227,8 @@ export function ExerciseForm({
                       key={group}
                       className={
                         selected
-                          ? `px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition-all duration-150 select-none active:scale-95 ${style.pill}`
-                          : 'px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition-all duration-150 select-none active:scale-95 bg-canvas-800 border-surface-border text-ink-muted hover:border-ink-faint hover:text-ink'
+                          ? `chip px-3 cursor-pointer select-none ${style.pill}`
+                          : 'chip px-3 cursor-pointer select-none hover:border-ink-faint hover:text-ink'
                       }
                     >
                       <input
@@ -242,6 +243,7 @@ export function ExerciseForm({
                 })}
               </div>
               {errors.targetMuscleGroups && <p className="field-error">{errors.targetMuscleGroups}</p>}
+              {!exercise && <p className="text-xs text-ink-faint mt-2">{CUSTOM_POSE_NOTE}</p>}
             </div>
 
             {/* Notes Field */}

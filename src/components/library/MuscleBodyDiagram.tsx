@@ -81,12 +81,12 @@ function BodyGradientDefs({ grad }: { grad: GradientIds }) {
   return (
     <defs>
       <radialGradient id={grad.neutral} cx="35%" cy="28%" r="75%">
-        <stop offset="0%" stopColor="#3d4051" />
-        <stop offset="100%" stopColor="#121319" />
+        <stop offset="0%" stopColor="#3a3834" />
+        <stop offset="100%" stopColor="#121110" />
       </radialGradient>
       <radialGradient id={grad.active} cx="35%" cy="28%" r="75%">
-        <stop offset="0%" stopColor="#ff9a9a" />
-        <stop offset="100%" stopColor="#b91c1c" />
+        <stop offset="0%" stopColor="#ff8a5c" />
+        <stop offset="100%" stopColor="#a83300" />
       </radialGradient>
     </defs>
   )
@@ -158,7 +158,7 @@ function Arm({
   )
 }
 
-function FrontBody({ active, pattern }: { active: Set<RegionId>; pattern?: MovementPattern }) {
+function FrontBody({ active, pattern, still }: { active: Set<RegionId>; pattern?: MovementPattern; still?: boolean }) {
   const rawId = useId().replace(/:/g, '')
   const grad: GradientIds = { neutral: `${rawId}-front-neutral`, active: `${rawId}-front-active` }
   const figureClass = (pattern && FIGURE_PATTERN_CLASS[pattern]) || ''
@@ -172,7 +172,7 @@ function FrontBody({ active, pattern }: { active: Set<RegionId>; pattern?: Movem
   return (
     <svg
       viewBox="0 0 140 320"
-      className="w-full h-auto tilt3d-figure drop-shadow-[0_8px_10px_rgba(0,0,0,0.5)]"
+      className={still ? 'w-full h-auto' : 'w-full h-auto tilt3d-figure drop-shadow-[0_8px_10px_rgba(0,0,0,0.5)]'}
       role="img"
       aria-label="Front of body"
     >
@@ -204,7 +204,7 @@ function FrontBody({ active, pattern }: { active: Set<RegionId>; pattern?: Movem
   )
 }
 
-function BackBody({ active, pattern }: { active: Set<RegionId>; pattern?: MovementPattern }) {
+function BackBody({ active, pattern, still }: { active: Set<RegionId>; pattern?: MovementPattern; still?: boolean }) {
   const rawId = useId().replace(/:/g, '')
   const grad: GradientIds = { neutral: `${rawId}-back-neutral`, active: `${rawId}-back-active` }
   const figureClass = (pattern && FIGURE_PATTERN_CLASS[pattern]) || ''
@@ -217,7 +217,7 @@ function BackBody({ active, pattern }: { active: Set<RegionId>; pattern?: Moveme
   return (
     <svg
       viewBox="0 0 140 320"
-      className="w-full h-auto tilt3d-figure drop-shadow-[0_8px_10px_rgba(0,0,0,0.5)]"
+      className={still ? 'w-full h-auto' : 'w-full h-auto tilt3d-figure drop-shadow-[0_8px_10px_rgba(0,0,0,0.5)]'}
       role="img"
       aria-label="Back of body"
     >
@@ -266,11 +266,27 @@ function BackBody({ active, pattern }: { active: Set<RegionId>; pattern?: Moveme
 export function MuscleBodyDiagram({
   targetMuscleGroups,
   pattern,
+  still = false,
 }: {
   targetMuscleGroups: string[]
   pattern?: MovementPattern
+  /** Small, motionless and unlabelled, for the Library grid where dozens render at once. */
+  still?: boolean
 }) {
   const active = activeRegionsFor(targetMuscleGroups)
+
+  if (still) {
+    return (
+      <div className="flex gap-1.5 justify-center">
+        <div className="w-10">
+          <FrontBody active={active} still />
+        </div>
+        <div className="w-10">
+          <BackBody active={active} still />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex gap-3 justify-center">

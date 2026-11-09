@@ -41,4 +41,11 @@ describe('useSettingsStore', () => {
     useSettingsStore.getState().setRemindersEnabled(false)
     expect(useSettingsStore.getState().remindersEnabled).toBe(false)
   })
+
+  it('defaults the Library to the list layout and persists a switch to grid', () => {
+    expect(useSettingsStore.getState().libraryView).toBe('list')
+    useSettingsStore.getState().setLibraryView('grid')
+    expect(useSettingsStore.getState().libraryView).toBe('grid')
+    expect(JSON.parse(localStorage.getItem('fittrack-settings')!).state.libraryView).toBe('grid')
+  })
 })

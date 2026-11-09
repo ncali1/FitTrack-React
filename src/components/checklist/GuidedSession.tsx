@@ -154,13 +154,13 @@ export function GuidedSession({
   return (
     <div className="space-y-5">
       <div>
-        <div className="flex justify-between text-xs text-ink-muted mb-1.5">
+        <div className="flex justify-between eyebrow mb-1.5">
           <span>
             Exercise {currentPosition1Based} of {totalExercises}
           </span>
-          <span>{progressPct}%</span>
+          <span className="num">{progressPct}%</span>
         </div>
-        <div className="h-1 rounded-full bg-canvas-800 overflow-hidden">
+        <div className="h-1.5 bg-canvas-700 overflow-hidden">
           <div
             className="h-full bg-accent transition-[width] duration-300"
             style={{ width: `${progressPct}%` }}
@@ -170,8 +170,11 @@ export function GuidedSession({
 
       {phase === 'resting' ? (
         <div className="flex flex-col items-center gap-3.5 py-16">
-          <div className="text-xs font-semibold uppercase tracking-widest text-accent-400">Rest</div>
-          <div className="text-6xl font-semibold text-ink font-heading tabular-nums">{restRemaining}s</div>
+          <div className="eyebrow text-accent-400">Rest</div>
+          <div className="num text-8xl font-semibold text-ink leading-none">
+            {restRemaining}
+            <span className="text-3xl text-ink-faint">s</span>
+          </div>
           {nextGroup && (
             <div className="text-sm text-ink-muted">Up next: {nextGroup.map((ex) => ex.name).join(' + ')}</div>
           )}
@@ -182,7 +185,7 @@ export function GuidedSession({
       ) : (
         <>
           <div className="flex items-center justify-between gap-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-accent-400">
+            <div className="eyebrow text-accent-400">
               {currentGroup.length > 1 && `Superset · ${exerciseIndexInGroup + 1} of ${currentGroup.length}`}
             </div>
             <button type="button" onClick={() => setShowSwap(true)} className="btn-secondary min-h-11">

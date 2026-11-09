@@ -20,6 +20,7 @@ import { GuidedSession } from './GuidedSession'
 import { SessionGroupPicker } from './SessionGroupPicker'
 import { RoutinePicker } from './RoutinePicker'
 import { CardioDayCard } from '@/components/cardio/CardioDayCard'
+import { Check, Moon } from 'lucide-react'
 
 interface SessionSummary {
   count: number
@@ -296,26 +297,24 @@ export function DailyChecklist() {
   if (sessionSummary) {
     return (
       <div className="flex flex-col items-center gap-4 py-16 px-2 text-center">
-        <div className="w-16 h-16 rounded-full bg-accent-500/15 flex items-center justify-center text-accent-400 text-3xl">
-          ✓
-        </div>
+        <Check size={44} strokeWidth={2.5} className="text-mark-500" aria-hidden="true" />
         <div>
-          <h3 className="text-ink">Workout complete</h3>
+          <h1 className="text-ink">Workout complete</h1>
           <p className="text-ink-muted text-sm mt-1.5">Nice work — that's today's session done.</p>
         </div>
-        <div className="flex gap-3 w-full max-w-xs">
-          <div className="stat-tile flex-1 items-center !p-3.5">
-            <div className="text-xl font-semibold text-ink">{sessionSummary.count}</div>
-            <div className="text-[11px] text-ink-muted">exercises</div>
+        <dl className="grid grid-cols-2 w-full max-w-xs border-y border-surface-border divide-x divide-surface-border">
+          <div className="py-3">
+            <dt className="eyebrow">Exercises</dt>
+            <dd className="num text-3xl font-semibold text-ink mt-1">{sessionSummary.count}</dd>
           </div>
-          <div className="stat-tile flex-1 items-center !p-3.5">
-            <div className="text-xl font-semibold text-ink">
+          <div className="py-3">
+            <dt className="eyebrow">Volume</dt>
+            <dd className="num text-3xl font-semibold text-ink mt-1">
               {formatWeight(sessionSummary.volumeKg, weightUnit)}
-              {weightUnit}
-            </div>
-            <div className="text-[11px] text-ink-muted">volume</div>
+              <span className="text-base text-ink-faint">{weightUnit}</span>
+            </dd>
           </div>
-        </div>
+        </dl>
         <button className="btn-primary w-full max-w-xs mt-1" onClick={() => setSessionSummary(null)}>
           Done
         </button>
@@ -363,8 +362,8 @@ export function DailyChecklist() {
           <DaySelector selectedDate={selectedDate} onSelectedDateChange={handleDateChange} />
 
           {exercisesForDay.length === 0 ? (
-            <div className="card-pad text-center py-14">
-              <div className="empty-blob animate-float">🌙</div>
+            <div className="border-y border-surface-border text-center py-14">
+              <div className="empty-blob"><Moon size={22} strokeWidth={1.75} /></div>
               <p className="text-ink font-semibold">Rest day</p>
               <p className="text-ink-muted text-sm mt-1">No exercises scheduled for this day.</p>
             </div>

@@ -80,8 +80,8 @@ export function SetNewPasswordForm({ onDone }: { onDone: () => void }) {
         </div>
       )}
       {successMessage && (
-        <div className="bg-lime-500/10 border border-lime-500/30 rounded-xl p-3">
-          <p className="text-lime-500 text-sm">{successMessage}</p>
+        <div className="bg-mark-500/10 border border-mark-500/30 rounded-xl p-3">
+          <p className="text-mark-500 text-sm">{successMessage}</p>
         </div>
       )}
 

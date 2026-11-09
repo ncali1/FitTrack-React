@@ -22,7 +22,7 @@ interface FormData {
 type FormErrors = Partial<Record<keyof FormData, string>>
 
 const DIFFICULTY_LEVELS: { value: DifficultyLevel; label: string; activeClass: string }[] = [
-  { value: 'easy', label: 'Easy', activeClass: 'bg-lime-500/15 border-lime-500 text-lime-500' },
+  { value: 'easy', label: 'Easy', activeClass: 'bg-mark-500/15 border-mark-500 text-mark-500' },
   { value: 'moderate', label: 'Moderate', activeClass: 'bg-amber-500/15 border-amber-500 text-amber-400' },
   { value: 'hard', label: 'Hard', activeClass: 'bg-red-500/15 border-red-500 text-red-400' },
 ]
@@ -320,8 +320,8 @@ export function PerformanceForm({
                 aria-pressed={form.rpe === value}
                 className={
                   form.rpe === value
-                    ? 'flex-none px-3 py-1.5 rounded-full text-xs font-semibold bg-accent text-canvas border border-accent'
-                    : 'flex-none px-3 py-1.5 rounded-full text-xs font-semibold bg-transparent text-ink-muted border border-surface-border'
+                    ? 'flex-none px-3 py-1.5 chip chip-on'
+                    : 'flex-none px-3 py-1.5 chip'
                 }
               >
                 {value}

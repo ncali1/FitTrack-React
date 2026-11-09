@@ -9,8 +9,8 @@ import { SettingsPage } from '@/components/settings/SettingsPage'
 import { TABS } from './tabs'
 
 /**
- * Sticky top header with app branding and, on sm+ viewports, a pill-style desktop tab
- * row. On mobile the primary navigation instead lives in BottomNav. The settings gear
+ * Sticky top header: the wordmark over a heavy rule, like the head of a log page, and on
+ * sm+ viewports an underlined desktop tab row. On mobile the primary navigation instead lives in BottomNav. The settings gear
  * always opens SettingsPage regardless of auth state, since those are local device
  * preferences. When cloud sync is configured and the user is signed in, also shows an
  * account menu button (synced indicator, change password, sign out) as a dropdown to
@@ -41,18 +41,13 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 pwa-safe-top bg-canvas border-b border-surface-border">
+    <header className="sticky top-0 z-40 pwa-safe-top bg-canvas border-b-2 border-ink">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3">
+        <div className="flex items-center justify-between h-14 gap-3">
           {/* Brand */}
-          <div className="flex items-center gap-2.5 flex-shrink-0">
-            <img
-              src={`${import.meta.env.BASE_URL}icons/icon-128.png`}
-              alt=""
-              className="w-9 h-9 rounded-xl"
-            />
-            <span className="text-lg font-extrabold tracking-tight text-ink">FitTrack</span>
-          </div>
+          <span className="display text-2xl text-ink flex-shrink-0">
+            Fit<span className="text-accent-500">Track</span>
+          </span>
 
           {/* Desktop nav — min-w-0 lets it shrink instead of overflowing onto neighbors;
               overflow-x-auto is a safety net so a future tab addition scrolls instead of clipping */}
@@ -64,8 +59,8 @@ export function TopBar() {
                 aria-current={activeTab === tab.id ? 'page' : undefined}
                 className={
                   activeTab === tab.id
-                    ? 'px-3 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 bg-accent-500/15 text-accent-400'
-                    : 'px-3 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 text-ink-muted hover:text-ink hover:bg-surface-hover'
+                    ? 'h-14 px-3 font-mono text-xs font-semibold uppercase tracking-[0.12em] whitespace-nowrap border-b-2 border-accent-500 text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400'
+                    : 'h-14 px-3 font-mono text-xs font-semibold uppercase tracking-[0.12em] whitespace-nowrap border-b-2 border-transparent text-ink-muted hover:text-ink transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400'
                 }
               >
                 {tab.label}
@@ -77,7 +72,7 @@ export function TopBar() {
           <div className="flex items-center gap-2 justify-end flex-shrink-0 relative">
             <button
               onClick={toggleWeightUnit}
-              className="inline-flex btn-ghost !px-2.5 !py-1.5 text-xs font-semibold"
+              className="btn-icon !w-auto px-2.5 font-mono text-xs font-semibold"
               title={`Switch to ${weightUnit === 'kg' ? 'lb' : 'kg'}`}
             >
               {weightUnit === 'kg' ? 'KG' : 'LB'}
@@ -101,8 +96,8 @@ export function TopBar() {
                 {showAccountMenu && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowAccountMenu(false)} />
-                    <div className="absolute right-0 top-full mt-2 w-56 card p-2 z-20 space-y-1">
-                      <div className="badge-lime w-full justify-center">Synced with the cloud</div>
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-canvas border border-surface-border rounded-sm p-2 z-20 space-y-1">
+                      <div className="badge-mark w-full justify-center">Synced with the cloud</div>
                       <button onClick={openChangePassword} className="btn-ghost w-full !justify-start text-sm">
                         Change password
                       </button>

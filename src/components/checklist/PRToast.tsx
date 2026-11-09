@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Trophy } from 'lucide-react'
 
 const DISMISS_DELAY_MS = 3200
 
@@ -17,15 +18,10 @@ export function PRToast({ message, onDismissed }: { message: string; onDismissed
 
   return (
     <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 w-full max-w-sm pwa-safe-top animate-celebrate-in">
-      <div className="card p-4 flex items-center gap-3 border-lime-500/40 shadow-[0_16px_48px_-12px_rgba(198,255,94,0.25)]">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg animate-float"
-          style={{ background: 'linear-gradient(135deg, rgba(198,255,94,0.35), rgba(3,172,143,0.2))' }}
-        >
-          🏆
-        </div>
+      <div className="bg-canvas border border-mark-500 border-l-4 rounded-sm p-4 flex items-center gap-3">
+        <Trophy size={22} strokeWidth={2} className="text-mark-500 flex-shrink-0" aria-hidden="true" />
         <div>
-          <p className="text-sm font-semibold text-ink">New personal record! ✨</p>
+          <p className="display text-lg text-mark-500">New personal record</p>
           <p className="text-xs text-ink-muted mt-0.5">{message}</p>
         </div>
       </div>
