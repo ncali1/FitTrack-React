@@ -6,17 +6,13 @@ import { useSettingsStore } from '@/stores/settings'
 import { useRestTimerStore } from '@/stores/restTimer'
 import { shouldNudgeToday } from '@/utils/reminders'
 import { Dumbbell } from 'lucide-react'
+import { todayString } from '@/utils/calculations'
 
 const LAST_NUDGE_KEY = 'fittrack-last-nudge-date'
 
 type Mode = 'ask' | 'nudge' | null
 
 /** Today's date as a YYYY-MM-DD string, matching the format used across the app. */
-function todayString(): string {
-  const today = new Date()
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-}
-
 /** `true` when the reminder (ask or nudge) has already been shown today. */
 function alreadyShownToday(today: string): boolean {
   return localStorage.getItem(LAST_NUDGE_KEY) === today

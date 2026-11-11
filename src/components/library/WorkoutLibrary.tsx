@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { useExercisesStore } from '@/stores/exercises'
 import { useRoutineStore } from '@/stores/routine'
 import { muscleGroupStyle } from '@/utils/muscleGroupStyles'
-import { getDayOfWeek, getPlannedExerciseIds } from '@/utils/calculations'
+import { getDayOfWeek, getPlannedExerciseIds, todayString } from '@/utils/calculations'
 import { useActiveProgram } from '@/hooks/useActiveProgram'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { WORKOUT_LIBRARY, type LibraryWorkout } from '@/data/workoutLibrary'
@@ -83,11 +83,6 @@ function buildLibrary(exercises: Exercise[]): LibraryItem[] {
   }
   // Array.prototype.sort is stable, so catalog order is kept within each region.
   return [...catalogItems, ...customItems].sort((a, b) => regionRank(a) - regionRank(b))
-}
-
-function todayString(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /**

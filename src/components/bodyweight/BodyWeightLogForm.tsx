@@ -3,8 +3,7 @@ import type { FormEvent } from 'react'
 import { useBodyWeightStore } from '@/stores/bodyWeight'
 import { useSettingsStore } from '@/stores/settings'
 import { toKg } from '@/utils/units'
-
-const today = new Date().toISOString().split('T')[0] as string
+import { todayString } from '@/utils/calculations'
 
 /**
  * Small inline form for logging today's (or a past) body weight entry. Accepts input
@@ -15,6 +14,9 @@ export function BodyWeightLogForm() {
   const logWeight = useBodyWeightStore((s) => s.logWeight)
   const weightUnit = useSettingsStore((s) => s.weightUnit)
 
+  // Read on each render rather than once at module load, so a form left open past
+  // midnight doesn't keep offering yesterday as "today".
+  const today = todayString()
   const [date, setDate] = useState(today)
   const [weight, setWeight] = useState<number | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)

@@ -1,13 +1,8 @@
 import { useMemo } from 'react'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { useActiveProgram } from '@/hooks/useActiveProgram'
-import { calculateStreak } from '@/utils/calculations'
+import { calculateStreak, todayString } from '@/utils/calculations'
 import { countPersonalRecords } from '@/utils/personalRecords'
-
-function todayString(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 /** Three lifetime totals under the profile header: workouts logged, current streak, records set. */
 export function ProfileStats() {

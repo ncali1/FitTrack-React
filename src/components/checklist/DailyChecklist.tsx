@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRoutineStore } from '@/stores/routine'
 import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { useActiveProgram } from '@/hooks/useActiveProgram'
@@ -6,9 +6,10 @@ import { useExercisesStore } from '@/stores/exercises'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { useSettingsStore } from '@/stores/settings'
 import { useRestTimerStore } from '@/stores/restTimer'
+import { useGuidedSessionStore } from '@/stores/guidedSession'
 import { detectNewRecords } from '@/utils/personalRecords'
 import { formatWeight } from '@/utils/units'
-import { calculateSessionVolume, getExerciseHistory, getPlannedExerciseIds } from '@/utils/calculations'
+import { calculateSessionVolume, getExerciseHistory, getPlannedExerciseIds, todayString } from '@/utils/calculations'
 import { suggestNextPerformance } from '@/utils/progressiveOverload'
 import type { Exercise, ExercisePerformance } from '@/types'
 import { DaySelector } from './DaySelector'
@@ -25,11 +26,6 @@ import { Check, Moon } from 'lucide-react'
 interface SessionSummary {
   count: number
   volumeKg: number
-}
-
-function todayString(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /**
@@ -60,7 +56,14 @@ export function DailyChecklist() {
   const restDuration = useSettingsStore((s) => s.restDuration)
   const startRestTimer = useRestTimerStore((s) => s.start)
 
-  const [selectedDate, setSelectedDate] = useState(todayString())
+  const guided = useGuidedSessionStore((s) => s.session)
+  const startGuided = useGuidedSessionStore((s) => s.start)
+  const swapGuided = useGuidedSessionStore((s) => s.swap)
+  const endGuided = useGuidedSessionStore((s) => s.end)
+
+  // A guided workout already under way (this tab was left and come back to, or the app
+  // was reopened) picks up on the date it was started for.
+  const [selectedDate, setSelectedDate] = useState(() => useGuidedSessionStore.getState().session?.date ?? todayString())
   const [activeExercise, setActiveExercise] = useState<Exercise | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [prMessage, setPrMessage] = useState<string | null>(null)
@@ -68,11 +71,8 @@ export function DailyChecklist() {
   // PRToast always remounts (and replays its enter animation + dismiss timer) for a new PR.
   const [prToastId, setPrToastId] = useState(0)
   const [groupPickerExercises, setGroupPickerExercises] = useState<Exercise[] | null>(null)
-  const [guidedGroups, setGuidedGroups] = useState<Exercise[][] | null>(null)
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null)
   const [showRoutinePicker, setShowRoutinePicker] = useState(false)
-  /** Wall-clock start of the current guided session, for computing its total duration on completion. */
-  const guidedSessionStartRef = useRef<number | null>(null)
 
   useEffect(() => {
     Promise.all([loadRoutines(), loadTemplates(), loadExercises(), loadSessions()]).catch((err) => {
@@ -87,6 +87,18 @@ export function DailyChecklist() {
   const exercisesForDay = exerciseIdsForDay
     .map((id) => exercises.find((e) => e.id === id))
     .filter((ex): ex is Exercise => ex !== undefined)
+
+  const resolvedGuidedGroups = guided?.groups.map((ids) => ids.map((id) => exercises.find((e) => e.id === id)))
+  /** The running guided session's exercises, or `null` if there is none or one of them no longer exists. */
+  const guidedGroups =
+    resolvedGuidedGroups && resolvedGuidedGroups.every((group) => group.every((ex) => ex !== undefined))
+      ? (resolvedGuidedGroups as Exercise[][])
+      : null
+  // An exercise in the session was deleted (e.g. on another device) — it can't be resumed.
+  const guidedIsBroken = guided !== null && guidedGroups === null
+  useEffect(() => {
+    if (guidedIsBroken) endGuided()
+  }, [guidedIsBroken, endGuided])
 
   const completedExerciseIds = (currentSession?.exercises ?? []).filter((e) => e.completed).map((e) => e.exerciseId)
 
@@ -211,8 +223,10 @@ export function DailyChecklist() {
   }
 
   const handleConfirmGroups = (groups: Exercise[][]) => {
-    guidedSessionStartRef.current = Date.now()
-    setGuidedGroups(groups)
+    startGuided(
+      selectedDate,
+      groups.map((group) => group.map((ex) => ex.id))
+    )
     setGroupPickerExercises(null)
   }
 
@@ -231,7 +245,7 @@ export function DailyChecklist() {
   /** Puts the swapped-in exercise in the running session, and in the day's plan so the
    *  checklist and completion stats match what was actually done. */
   const handleGuidedSwap = async (from: Exercise, to: Exercise) => {
-    setGuidedGroups((prev) => prev && prev.map((group) => group.map((ex) => (ex.id === from.id ? to : ex))))
+    swapGuided(from.id, to.id)
     const swapped = exerciseIdsForDay.map((id) => (id === from.id ? to.id : id))
     try {
       await setPlannedExercises(selectedDate, [...new Set(swapped)])
@@ -249,20 +263,18 @@ export function DailyChecklist() {
     const session = useWorkoutSessionsStore.getState().sessions.find((s) => s.date === selectedDate)
     const loggedPerformances = (session?.exercises ?? []).filter((p) => loggedIds.has(p.exerciseId))
 
-    if (session && guidedSessionStartRef.current !== null) {
-      const durationSeconds = Math.round((Date.now() - guidedSessionStartRef.current) / 1000)
+    if (session && guided) {
+      const durationSeconds = Math.round((Date.now() - guided.startedAt) / 1000)
       useWorkoutSessionsStore
         .getState()
         .updateSession(session.id, { durationSeconds })
         .catch((err) => console.error('Failed to save session duration:', err))
     }
-    guidedSessionStartRef.current = null
-
     setSessionSummary({
       count: loggedPerformances.filter((p) => p.completed).length,
       volumeKg: calculateSessionVolume(loggedPerformances),
     })
-    setGuidedGroups(null)
+    endGuided()
   }
 
   /** Swaps the selected date's plan for a routine's exercises, or adds them to what's there. */
@@ -356,6 +368,7 @@ export function DailyChecklist() {
           onLogExercise={handleGuidedLog}
           onSwapExercise={handleGuidedSwap}
           onComplete={handleGuidedComplete}
+          onExit={endGuided}
         />
       ) : (
         <>

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { addDays, todayString } from '@/utils/calculations'
 
 interface TimeRange {
   start: string
@@ -21,11 +22,6 @@ interface UIState {
   setActiveTab: (tab: string) => void
 }
 
-function todayString(): string {
-  const today = new Date()
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-}
-
 /**
  * Zustand store for global UI state: selected date/exercise, progress time range, and
  * the active navigation tab.
@@ -34,7 +30,7 @@ export const useUIStore = create<UIState>()((set) => ({
   selectedDate: todayString(),
   selectedExercise: null,
   timeRange: {
-    start: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] as string,
+    start: addDays(todayString(), -28),
     end: todayString(),
   },
   activeTab: 'home',

@@ -7,7 +7,7 @@ import { useBodyWeightStore } from '@/stores/bodyWeight'
 import { useSettingsStore } from '@/stores/settings'
 import { calculatePersonalRecord } from '@/utils/personalRecords'
 import { bestEstimatedOneRepMax } from '@/utils/oneRepMax'
-import { calculateWeeklySummary, getWeekStart, getDayOfWeek, addDays } from '@/utils/calculations'
+import { calculateWeeklySummary, getWeekStart, getDayOfWeek, addDays, todayString } from '@/utils/calculations'
 import { calculateMuscleGroupSets } from '@/utils/muscleBalance'
 import { formatWeight } from '@/utils/units'
 import { WeeklyBars } from './WeeklyBars'
@@ -20,11 +20,6 @@ import { BodyWeightChart } from '@/components/bodyweight/BodyWeightChart'
 import { BodyWeightLogForm } from '@/components/bodyweight/BodyWeightLogForm'
 import { CardioSummary } from '@/components/cardio/CardioSummary'
 import { TrendingUp } from 'lucide-react'
-
-function todayString(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 /** Formats a Date as a short month + day label for chart X-axis ticks, e.g. "Jan 6". */
 function formatWeekLabel(d: Date): string {

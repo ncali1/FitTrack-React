@@ -15,13 +15,9 @@ import {
   calculateWeeklySummary,
   calculateStreak,
   getIsoWeek,
+  todayString,
 } from '@/utils/calculations'
 import { formatWeight } from '@/utils/units'
-
-function todayString(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 /**
  * Landing "Home" tab, laid out like the top of a logbook page: a date/week stamp, today's

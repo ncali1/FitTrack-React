@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Shuffle } from 'lucide-react'
 import type { Exercise, ExercisePerformance, WorkoutSession } from '@/types'
 import { getExerciseHistory } from '@/utils/calculations'
@@ -7,6 +7,7 @@ import { secondsUntil } from '@/stores/restTimer'
 import { armRestAlert, disarmRestAlert, fireRestAlert } from '@/services/restAlert'
 import { useKeepAwake } from '@/hooks/useKeepAwake'
 import { useSettingsStore } from '@/stores/settings'
+import { useGuidedSessionStore } from '@/stores/guidedSession'
 import { PerformanceForm } from './PerformanceForm'
 import { SwapExerciseSheet } from './SwapExerciseSheet'
 
@@ -27,6 +28,10 @@ type Phase = 'logging' | 'resting'
  * is backgrounded or the phone locks mid-rest; the screen is kept awake for as long as
  * the session is on screen (unless turned off in Preferences).
  *
+ * Which exercise you're on and when the current rest ends live in `guidedSessionStore`,
+ * not here, so the session survives this component unmounting (every tab switch does
+ * that) and the app being killed in the background. "End session" is the way out.
+ *
  * The exercise you're on can be swapped for a same-muscle alternative (machine taken,
  * bench busy) without leaving the session; it takes over that slot, superset and all.
  */
@@ -37,6 +42,7 @@ export function GuidedSession({
   onLogExercise,
   onSwapExercise,
   onComplete,
+  onExit,
 }: {
   groups: Exercise[][]
   /** All workout sessions, used to suggest each exercise's next weight/reps from its history. */
@@ -49,14 +55,21 @@ export function GuidedSession({
   /** Replaces `from` with `to` — the parent passes back `groups` with the swap applied. */
   onSwapExercise: (from: Exercise, to: Exercise) => void | Promise<void>
   onComplete: () => void
+  /** Abandons the rest of the session; what has been logged so far is already saved. */
+  onExit: () => void
 }) {
   const [showSwap, setShowSwap] = useState(false)
-  const [groupIndex, setGroupIndex] = useState(0)
-  const [exerciseIndexInGroup, setExerciseIndexInGroup] = useState(0)
-  const [phase, setPhase] = useState<Phase>('logging')
+  const position = useGuidedSessionStore((s) => s.session)
+  const advance = useGuidedSessionStore((s) => s.advance)
+  const startRest = useGuidedSessionStore((s) => s.startRest)
+  const groupIndex = position?.groupIndex ?? 0
+  const exerciseIndexInGroup = position?.exerciseIndex ?? 0
   /** Unix milliseconds at which the current rest ends; `null` outside the resting phase. */
-  const [restEndsAt, setRestEndsAt] = useState<number | null>(null)
-  const [restRemaining, setRestRemaining] = useState(restDuration)
+  const restEndsAt = position?.restEndsAt ?? null
+  const phase: Phase = restEndsAt === null ? 'logging' : 'resting'
+  const [restRemaining, setRestRemaining] = useState(() =>
+    restEndsAt === null ? restDuration : secondsUntil(restEndsAt)
+  )
 
   useKeepAwake(useSettingsStore((s) => s.keepScreenAwake))
 
@@ -67,29 +80,21 @@ export function GuidedSession({
   const isLastGroup = groupIndex === groups.length - 1
   const isVeryLast = isLastExerciseInGroup && isLastGroup
 
-  /** Moves to the next exercise within the current group, or the next group's first. */
-  const advance = useCallback(() => {
-    if (!isLastExerciseInGroup) {
-      setExerciseIndexInGroup((i) => i + 1)
-    } else {
-      setGroupIndex((g) => g + 1)
-      setExerciseIndexInGroup(0)
-    }
-  }, [isLastExerciseInGroup])
-
   useEffect(() => {
-    if (phase !== 'resting' || restEndsAt === null) return
+    if (restEndsAt === null) return
+    // Armed here rather than where the rest starts, so a rest picked up again after the
+    // app was reloaded mid-workout still alerts.
+    if (restEndsAt > Date.now()) armRestAlert(restEndsAt)
     const tick = () => {
       const remaining = secondsUntil(restEndsAt)
       if (remaining <= 0) {
         fireRestAlert()
-        setRestEndsAt(null)
-        setPhase('logging')
         advance()
       } else {
         setRestRemaining(remaining)
       }
     }
+    tick()
     const interval = setInterval(tick, 250)
     // Timers are throttled while hidden — catch up the instant the app is visible again.
     document.addEventListener('visibilitychange', tick)
@@ -97,10 +102,7 @@ export function GuidedSession({
       clearInterval(interval)
       document.removeEventListener('visibilitychange', tick)
     }
-  }, [phase, restEndsAt, advance])
-
-  // Leaving the session mid-rest shouldn't leave an alert pending for it.
-  useEffect(() => disarmRestAlert, [])
+  }, [restEndsAt, advance])
 
   const handleSubmit = async (performance: Omit<ExercisePerformance, 'exerciseId' | 'timestamp'>) => {
     if (!currentExercise) return
@@ -112,11 +114,8 @@ export function GuidedSession({
       // Group finished — a real rest follows. The exercise just completed (the group's
       // last member) may have its own custom rest override.
       const restSeconds = currentExercise.restSeconds ?? restDuration
-      const endsAt = Date.now() + restSeconds * 1000
       setRestRemaining(restSeconds)
-      setRestEndsAt(endsAt)
-      armRestAlert(endsAt)
-      setPhase('resting')
+      startRest(Date.now() + restSeconds * 1000)
     } else {
       // More members in this same group — straight on, no rest.
       advance()
@@ -131,9 +130,12 @@ export function GuidedSession({
 
   const skipRest = () => {
     disarmRestAlert()
-    setRestEndsAt(null)
-    setPhase('logging')
     advance()
+  }
+
+  const handleExit = () => {
+    disarmRestAlert()
+    onExit()
   }
 
   if (!currentExercise) return null
@@ -215,6 +217,10 @@ export function GuidedSession({
           />
         </>
       )}
+
+      <button type="button" onClick={handleExit} className="btn-ghost w-full">
+        End session
+      </button>
     </div>
   )
 }

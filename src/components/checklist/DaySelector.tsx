@@ -1,4 +1,5 @@
 import type { ChangeEvent } from 'react'
+import { todayString } from '@/utils/calculations'
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -9,10 +10,6 @@ function toDateString(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
-}
-
-function todayString(): string {
-  return toDateString(new Date())
 }
 
 /** Last 7 days including today, displayed oldest-first (left to right). */

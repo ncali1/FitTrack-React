@@ -11,6 +11,7 @@ import { useRoutineStore } from '@/stores/routine'
 import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { useWorkoutSessionsStore } from '@/stores/workoutSessions'
 import { useSettingsStore } from '@/stores/settings'
+import { useGuidedSessionStore } from '@/stores/guidedSession'
 import { getDayOfWeek } from '@/utils/calculations'
 import type { Exercise, Routine, WorkoutTemplate, WorkoutSession } from '@/types'
 
@@ -74,6 +75,7 @@ describe('E2E: guided session warm-ups and swaps', () => {
     useWorkoutTemplatesStore.setState(INITIAL_TEMPLATES, true)
     useWorkoutSessionsStore.setState(INITIAL_SESSIONS, true)
     useSettingsStore.setState({ ...INITIAL_SETTINGS, weightUnit: 'kg' }, true)
+    useGuidedSessionStore.getState().end()
 
     bench = await useExercisesStore.getState().createExercise('Bench Press', 3, 10, ['Chest'])
     await useRoutineStore.getState().assignExercise(getDayOfWeek(today), bench.id)
@@ -159,5 +161,77 @@ describe('E2E: guided session warm-ups and swaps', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByText(/Bench Press/)).toBeTruthy()
     expect(useWorkoutSessionsStore.getState().sessions.find((s) => s.date === today)?.plannedExerciseIds).toBeUndefined()
+  })
+
+  describe('leaving and coming back', () => {
+    async function logCurrentExercise(user: ReturnType<typeof userEvent.setup>, submitLabel: string) {
+      await user.type(screen.getByLabelText('Actual Sets *'), '3')
+      await user.type(screen.getByLabelText('Actual Reps *'), '8')
+      await user.click(screen.getByText('Moderate'))
+      await user.click(screen.getByRole('button', { name: submitLabel }))
+    }
+
+    beforeEach(async () => {
+      const squat = await useExercisesStore.getState().createExercise('Back Squat', 3, 5, ['Legs'])
+      await useRoutineStore.getState().assignExercise(getDayOfWeek(today), squat.id)
+    })
+
+    it('keeps your place, mid-rest, when the Train tab is left and reopened', async () => {
+      const user = userEvent.setup()
+      const { unmount } = render(<DailyChecklist />)
+      await startGuidedSession(user)
+      await logCurrentExercise(user, 'Complete & rest')
+      expect(await screen.findByText('Up next: Back Squat')).toBeTruthy()
+
+      // Switching tabs unmounts the Train tab entirely.
+      unmount()
+      render(<DailyChecklist />)
+
+      expect(await screen.findByText('Up next: Back Squat')).toBeTruthy()
+      await user.click(screen.getByRole('button', { name: 'Skip rest' }))
+      expect(await screen.findByText('Exercise 2 of 2')).toBeTruthy()
+      expect(screen.getByText(/Back Squat/)).toBeTruthy()
+    })
+
+    it('finishes the workout and records its duration after coming back', async () => {
+      const user = userEvent.setup()
+      const { unmount } = render(<DailyChecklist />)
+      await startGuidedSession(user)
+      await logCurrentExercise(user, 'Complete & rest')
+
+      unmount()
+      render(<DailyChecklist />)
+      await user.click(await screen.findByRole('button', { name: 'Skip rest' }))
+      await logCurrentExercise(user, 'Finish workout')
+
+      expect(await screen.findByText('Workout complete')).toBeTruthy()
+      expect(useGuidedSessionStore.getState().session).toBeNull()
+      const session = useWorkoutSessionsStore.getState().sessions.find((s) => s.date === today)!
+      expect(session.exercises).toHaveLength(2)
+      expect(session.durationSeconds).toBeGreaterThanOrEqual(0)
+    })
+
+    it('ends the session on request, keeping what was already logged', async () => {
+      const user = userEvent.setup()
+      render(<DailyChecklist />)
+      await startGuidedSession(user)
+      await logCurrentExercise(user, 'Complete & rest')
+
+      await user.click(screen.getByRole('button', { name: 'End session' }))
+
+      expect(await screen.findByRole('button', { name: 'Start guided workout' })).toBeTruthy()
+      expect(useGuidedSessionStore.getState().session).toBeNull()
+      const session = useWorkoutSessionsStore.getState().sessions.find((s) => s.date === today)!
+      expect(session.exercises.map((p) => p.exerciseId)).toEqual([bench.id])
+    })
+
+    it('drops a session whose exercise no longer exists instead of showing a blank screen', async () => {
+      useGuidedSessionStore.getState().start(today, [['deleted-elsewhere']])
+
+      render(<DailyChecklist />)
+
+      expect(await screen.findByRole('button', { name: 'Start guided workout' })).toBeTruthy()
+      expect(useGuidedSessionStore.getState().session).toBeNull()
+    })
   })
 })

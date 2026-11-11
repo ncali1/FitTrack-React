@@ -20,8 +20,16 @@ const DAY_NAMES: Record<number, string> = {
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
 /** Formats a Date as a YYYY-MM-DD string. */
-function toDateString(d: Date): string {
+export function toDateString(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Today as a local `YYYY-MM-DD` string. Never derive this from `toISOString()`: that is
+ * UTC, so in the evening west of Greenwich it already reads as tomorrow.
+ */
+export function todayString(): string {
+  return toDateString(new Date())
 }
 
 /**

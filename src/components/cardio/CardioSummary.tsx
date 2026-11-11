@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useCardioStore } from '@/stores/cardio'
 import { useSettingsStore } from '@/stores/settings'
-import { addDays, getWeekStart } from '@/utils/calculations'
+import { addDays, getWeekStart, todayString } from '@/utils/calculations'
 import { cardioTotals, formatDistance, formatTotalTime, sortCardioNewestFirst } from '@/utils/cardio'
 import type { CardioSession } from '@/types'
 import { CardioSessionRow } from './CardioDayCard'
@@ -19,11 +19,6 @@ function friendlyDate(dateStr: string, today: string): string {
   const [y, m, d] = dateStr.split('-').map(Number)
   const date = new Date(y!, m! - 1, d!)
   return `${WEEKDAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`
-}
-
-function todayString(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /**

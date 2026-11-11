@@ -2,7 +2,7 @@
  * End-to-end test for the Body Weight tab: logging an entry, seeing it in the list,
  * and deleting it.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BodyWeightTracker } from './BodyWeightTracker'
@@ -43,6 +43,27 @@ const INITIAL_STATE = useBodyWeightStore.getState()
 describe('E2E: Body Weight Tracker', () => {
   beforeEach(() => {
     useBodyWeightStore.setState(INITIAL_STATE, true)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it.each([
+    ['late in the evening', new Date(2026, 0, 15, 23, 30)],
+    ['just after midnight', new Date(2026, 0, 16, 0, 30)],
+  ])('defaults the date to the local day %s, not the UTC one', async (_label, now) => {
+    // Only the clock is faked, so Testing Library's own timers keep running. The form
+    // module was loaded long before this moment — "today" must be read when it renders.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(now)
+    const expected = `2026-01-${now.getDate()}`
+
+    render(<BodyWeightTracker />)
+
+    const dateInput = (await screen.findByLabelText('Date')) as HTMLInputElement
+    expect(dateInput.value).toBe(expected)
+    expect(dateInput.max).toBe(expected)
   })
 
   it('shows an empty state, logs an entry via the form, and lists it', async () => {

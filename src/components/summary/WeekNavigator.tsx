@@ -1,15 +1,11 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { todayString } from '@/utils/calculations'
 
 /** Formats a YYYY-MM-DD date string as a short month + day label, e.g. "Jan 6". */
 function formatDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number)
   const d = new Date(year!, month! - 1, day!)
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
-
-function todayString(): string {
-  const today = new Date()
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 }
 
 /**

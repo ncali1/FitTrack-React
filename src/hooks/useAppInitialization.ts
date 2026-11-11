@@ -38,47 +38,21 @@ export function useAppInitialization() {
 
     // Each load is independent — a failure in one shouldn't block the others (graceful
     // degradation to an empty state), except a quota error, which is surfaced to the user.
-    try {
-      await loadExercises()
-    } catch (err) {
-      if (err instanceof StorageQuotaError) setError(err.message)
-      else console.error('Failed to load exercises, continuing with empty state:', err)
-    }
-
-    try {
-      await loadRoutines()
-    } catch (err) {
-      if (err instanceof StorageQuotaError) setError(err.message)
-      else console.error('Failed to load routines, continuing with empty state:', err)
-    }
-
-    try {
-      await loadTemplates()
-    } catch (err) {
-      if (err instanceof StorageQuotaError) setError(err.message)
-      else console.error('Failed to load workout templates, continuing with empty state:', err)
-    }
-
-    try {
-      await loadSessions()
-    } catch (err) {
-      if (err instanceof StorageQuotaError) setError(err.message)
-      else console.error('Failed to load sessions, continuing with empty state:', err)
-    }
-
-    try {
-      await loadBodyWeightLogs()
-    } catch (err) {
-      if (err instanceof StorageQuotaError) setError(err.message)
-      else console.error('Failed to load body weight logs, continuing with empty state:', err)
-    }
-
-    try {
-      await loadCardio()
-    } catch (err) {
-      if (err instanceof StorageQuotaError) setError(err.message)
-      else console.error('Failed to load cardio sessions, continuing with empty state:', err)
-    }
+    // They read separate IndexedDB tables, so they run together rather than in a queue.
+    const loads: [name: string, load: () => Promise<void>][] = [
+      ['exercises', loadExercises],
+      ['routines', loadRoutines],
+      ['workout templates', loadTemplates],
+      ['sessions', loadSessions],
+      ['body weight logs', loadBodyWeightLogs],
+      ['cardio sessions', loadCardio],
+    ]
+    const results = await Promise.allSettled(loads.map(([, load]) => load()))
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') return
+      if (result.reason instanceof StorageQuotaError) setError(result.reason.message)
+      else console.error(`Failed to load ${loads[index]![0]}, continuing with empty state:`, result.reason)
+    })
 
     setIsInitialized(true)
     setIsLoading(false)

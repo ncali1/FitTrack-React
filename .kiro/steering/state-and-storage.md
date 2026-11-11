@@ -12,7 +12,9 @@ fileMatchPattern: ["src/stores/**", "src/services/**", "src/types/**", "src/util
 | Workout data (the user's records) | IndexedDB via Dexie (`src/services/database.ts`), accessed only through `storageService` (`src/services/storage.ts`) | exercises, sessions, cardio, body weight, routines |
 | Per-device preferences | Zustand `persist` → localStorage key `fittrack-settings` (`src/stores/settings.ts`) | units, rest duration, sound/vibration, keep-awake |
 
-Preferences are never synced or exported. Workout data is both.
+| In-progress guided workout (position, start time, rest end) | Zustand `persist` → localStorage key `fittrack-guided-session` (`src/stores/guidedSession.ts`) | survives tab switches and the app being killed; dropped after 12 hours |
+
+Preferences and the in-progress workout are never synced or exported. Workout data is both.
 
 ## Data store pattern
 
@@ -56,4 +58,6 @@ Missing any of these silently breaks sync, backup or reset:
 Anything that counts down or measures elapsed time derives from a stored wall-clock
 timestamp (`endsAt`, `startedAt`) and recomputes on each tick and on `visibilitychange`.
 Never decrement a counter per tick: browsers throttle or suspend timers in the background.
-See `src/stores/restTimer.ts`. Dates are local `YYYY-MM-DD` strings, not UTC ISO dates.
+See `src/stores/restTimer.ts`. Dates are local `YYYY-MM-DD` strings, not UTC ISO dates —
+use `todayString()` / `toDateString()` from `src/utils/calculations.ts`, never `toISOString()`,
+and call them when rendering rather than at module load (the app can stay open past midnight).
