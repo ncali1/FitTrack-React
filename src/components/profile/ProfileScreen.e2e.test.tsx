@@ -345,6 +345,37 @@ describe('E2E: ProfileScreen', () => {
       expect(screen.queryByRole('button', { name: /change password/i })).toBeNull()
     })
 
+    it('says nothing about device storage when the browser can’t protect it', async () => {
+      render(<ProfileScreen />)
+
+      expect(await screen.findByText(/last backup: never/i)).toBeTruthy()
+      expect(screen.queryByText('Device storage')).toBeNull()
+    })
+
+    it('shows device storage as protected once the browser has agreed to keep it', async () => {
+      vi.stubGlobal('navigator', {
+        ...navigator,
+        storage: { persisted: vi.fn(async () => true), persist: vi.fn(async () => true) },
+      })
+      render(<ProfileScreen />)
+
+      expect(await screen.findByText('Protected')).toBeTruthy()
+      vi.unstubAllGlobals()
+    })
+
+    it('offers to protect device storage and reports the browser’s answer', async () => {
+      const persist = vi.fn(async () => true)
+      vi.stubGlobal('navigator', { ...navigator, storage: { persisted: vi.fn(async () => false), persist } })
+      const user = userEvent.setup()
+      render(<ProfileScreen />)
+
+      await user.click(await screen.findByRole('button', { name: /^protect$/i }))
+
+      expect(await screen.findByText('Protected')).toBeTruthy()
+      expect(persist).toHaveBeenCalledTimes(1)
+      vi.unstubAllGlobals()
+    })
+
     it('shows change password when signed in', () => {
       useAuthStore.setState({ cloudEnabled: true, user: { email: 'test@example.com' } as never })
       render(<ProfileScreen />)

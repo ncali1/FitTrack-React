@@ -7,14 +7,18 @@ import { deleteAllCloudData, clearSyncQueue } from '@/services/cloudSync'
 import { reloadAllStores } from '@/stores/reloadAllStores'
 import { BackupControls } from '@/components/settings/BackupControls'
 import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal'
+import { useStorageProtection } from '@/hooks/useStorageProtection'
 
 /**
- * Backup, account, and about: export/import, cloud sync status, change password, privacy
- * policy, app version, and a full "delete all my data" reset.
+ * Backup, account, and about: export/import, whether the browser is protecting this
+ * device's data, cloud sync status, change password, privacy policy, app version, and a
+ * full "delete all my data" reset.
  */
 export function DataAccountCard() {
   const cloudEnabled = useAuthStore((s) => s.cloudEnabled)
   const user = useAuthStore((s) => s.user)
+
+  const storage = useStorageProtection()
 
   const [showChangePassword, setShowChangePassword] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -39,6 +43,15 @@ export function DataAccountCard() {
     }
   }
 
+  /** Asks again — worth doing after installing the app, which is what usually earns a yes. */
+  const handleProtectStorage = async () => {
+    if ((await storage.request()) === 'protected') {
+      toast.success('Your data on this device is now protected')
+    } else {
+      toast('Your browser hasn’t allowed this yet. Adding FitTrack to your home screen usually does it.')
+    }
+  }
+
   return (
     <div className="card-pad space-y-4">
       <h3 className="text-ink text-sm">Data &amp; account</h3>
@@ -49,6 +62,28 @@ export function DataAccountCard() {
       </div>
 
       <div className="divide-y divide-surface-border">
+        {storage.status === 'protected' && (
+          <div className="flex items-center justify-between py-2.5 first:pt-0">
+            <span className="text-sm text-ink">Device storage</span>
+            <span className="badge-mark">Protected</span>
+          </div>
+        )}
+
+        {storage.status === 'unprotected' && (
+          <div className="py-2.5 first:pt-0">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-ink">Device storage</span>
+              <button onClick={handleProtectStorage} className="btn-ghost !px-3 text-xs">
+                Protect
+              </button>
+            </div>
+            <p className="text-xs text-ink-faint mt-1">
+              Not protected: your browser may clear this app’s data if the device runs low on space or the app goes
+              unused. Keep a backup{cloudEnabled && !user ? ' or sign in' : ''}.
+            </p>
+          </div>
+        )}
+
         {cloudEnabled && (
           <div className="flex items-center justify-between py-2.5 first:pt-0">
             <span className="text-sm text-ink">Cloud sync</span>

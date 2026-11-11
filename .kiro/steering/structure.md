@@ -39,6 +39,8 @@ alert, keep-awake hook and sound setting, and merging them took real work. In pa
 - Rest alerts (sound, haptic, notification) → `src/services/restAlert.ts`
 - Keep screen awake → `src/hooks/useKeepAwake.ts`
 - Overlay scroll locking → `src/hooks/useBodyScrollLock.ts`
+- Exporting a backup → `src/hooks/useBackupExport.ts`
+- Persistent storage (eviction protection) → `src/services/persistentStorage.ts`
 - Preferences → `src/stores/settings.ts`, shown in `src/components/profile/PreferencesCard.tsx`
 - Exercise history / suggestions → `src/utils/calculations.ts`, `src/utils/progressiveOverload.ts`
 

@@ -1,4 +1,5 @@
 import { db } from './database'
+import { protectStorageOnce } from './persistentStorage'
 import type { Exercise, Routine, WorkoutTemplate, WorkoutSession, BodyWeightLog, CardioSession } from '@/types'
 
 const MAX_RETRIES = 3
@@ -63,6 +64,14 @@ async function retryOperation<T>(operation: () => Promise<T>, operationName: str
 }
 
 /**
+ * Runs after a successful save. The first one each page load asks the browser not to
+ * evict this data — see {@link protectStorageOnce} for why it waits for a write.
+ */
+function afterSave(): void {
+  protectStorageOnce()
+}
+
+/**
  * Provides CRUD operations for exercises, routines, workout sessions, and body
  * weight logs backed by IndexedDB (via Dexie). All methods automatically retry
  * transient failures with exponential back-off and throw {@link StorageQuotaError}
@@ -72,7 +81,7 @@ export const storageService = {
   // ── Exercise operations ───────────────────────────────────────────────────
 
   async saveExercise(exercise: Exercise): Promise<void> {
-    return retryOperation(() => db.exercises.put(toPlain(exercise)), 'Save exercise').then(() => {})
+    return retryOperation(() => db.exercises.put(toPlain(exercise)), 'Save exercise').then(afterSave)
   },
 
   async getExercise(id: string): Promise<Exercise | undefined> {
@@ -90,7 +99,7 @@ export const storageService = {
   // ── Routine operations ────────────────────────────────────────────────────
 
   async saveRoutine(routine: Routine): Promise<void> {
-    return retryOperation(() => db.routine.put(toPlain(routine)), 'Save routine').then(() => {})
+    return retryOperation(() => db.routine.put(toPlain(routine)), 'Save routine').then(afterSave)
   },
 
   async getAllRoutines(): Promise<Routine[]> {
@@ -104,7 +113,7 @@ export const storageService = {
   // ── Workout template operations ───────────────────────────────────────────
 
   async saveWorkoutTemplate(template: WorkoutTemplate): Promise<void> {
-    return retryOperation(() => db.workoutTemplates.put(toPlain(template)), 'Save workout template').then(() => {})
+    return retryOperation(() => db.workoutTemplates.put(toPlain(template)), 'Save workout template').then(afterSave)
   },
 
   async getAllWorkoutTemplates(): Promise<WorkoutTemplate[]> {
@@ -118,7 +127,7 @@ export const storageService = {
   // ── Workout session operations ────────────────────────────────────────────
 
   async saveWorkoutSession(session: WorkoutSession): Promise<void> {
-    return retryOperation(() => db.workoutSessions.put(toPlain(session)), 'Save workout session').then(() => {})
+    return retryOperation(() => db.workoutSessions.put(toPlain(session)), 'Save workout session').then(afterSave)
   },
 
   async getWorkoutSession(id: string): Promise<WorkoutSession | undefined> {
@@ -151,7 +160,7 @@ export const storageService = {
       const existing = await db.bodyWeightLogs.where('date').equals(log.date).first()
       const plain = toPlain(existing ? { ...log, id: existing.id } : log)
       await db.bodyWeightLogs.put(plain)
-    }, 'Save body weight log').then(() => {})
+    }, 'Save body weight log').then(afterSave)
   },
 
   async getAllBodyWeightLogs(): Promise<BodyWeightLog[]> {
@@ -165,7 +174,7 @@ export const storageService = {
   // ── Cardio session operations ─────────────────────────────────────────────
 
   async saveCardioSession(session: CardioSession): Promise<void> {
-    return retryOperation(() => db.cardioSessions.put(toPlain(session)), 'Save cardio session').then(() => {})
+    return retryOperation(() => db.cardioSessions.put(toPlain(session)), 'Save cardio session').then(afterSave)
   },
 
   async getAllCardioSessions(): Promise<CardioSession[]> {

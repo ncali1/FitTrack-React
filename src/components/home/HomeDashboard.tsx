@@ -18,11 +18,13 @@ import {
   todayString,
 } from '@/utils/calculations'
 import { formatWeight } from '@/utils/units'
+import { BackupReminder } from './BackupReminder'
 
 /**
  * Landing "Home" tab, laid out like the top of a logbook page: a date/week stamp, today's
  * numbered exercise list with target sets×reps (or a rest-day note), and a ruled row of
- * three stats (training streak, this week's completion, latest body weight).
+ * three stats (training streak, this week's completion, latest body weight), then a
+ * backup reminder when one is due.
  * Reuses the same stores/calculations as Train/Progress rather than tracking its own
  * copy of any of this data.
  */
@@ -161,6 +163,8 @@ export function HomeDashboard() {
           <dd className="num text-xs text-ink-faint">{deltaDisplay}</dd>
         </div>
       </dl>
+
+      <BackupReminder />
     </div>
   )
 }
