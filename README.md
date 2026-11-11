@@ -66,7 +66,7 @@ The app runs fully local-only with zero configuration — no `.env` file needed.
 cp .env.example .env.local
 ```
 
-Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from your Supabase project (Settings → API), and apply [supabase/schema.sql](./supabase/schema.sql) in the SQL Editor (creates the tables and row-level-security policies). The file is safe to re-run, and should be re-run after pulling changes that touch it — until then, newer data such as routines stays on the device that created it instead of syncing. Leave both env vars unset to run fully offline/local — the app behaves identically either way, just without an auth gate or cross-device sync. `.env.local` is gitignored — never commit your Supabase keys.
+Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from your Supabase project (Settings → API), and apply [supabase/schema.sql](./supabase/schema.sql) in the SQL Editor (creates the tables and row-level-security policies). The file is safe to re-run, and should be re-run after pulling changes that touch it — until then, newer data such as routines stays on the device that created it instead of syncing, and deleting something on one device doesn't remove it from the others. Leave both env vars unset to run fully offline/local — the app behaves identically either way, just without an auth gate or cross-device sync. `.env.local` is gitignored — never commit your Supabase keys.
 
 ## Testing
 

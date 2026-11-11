@@ -35,7 +35,8 @@ Missing any of these silently breaks sync, backup or reset:
 2. Table in `database.ts` under a **new** `this.version(n + 1)` — never edit an existing version.
 3. CRUD methods in `storage.ts` (wrapped in its retry helper).
 4. A store in `src/stores/`, and its `load…()` added to `reloadAllStores.ts`.
-5. Row mapping plus upsert/delete/pull in `cloudSync.ts`.
+5. A `SyncTable` entry in `TABLES` (row mapping + local accessors) and the `syncUpsertX` /
+   `syncDeleteX` exports in `cloudSync.ts`. Queueing, flushing, pulling and tombstones are generic.
 6. Table plus RLS policies in `supabase/schema.sql` (see `supabase.md`).
 7. Include it in backup export/import (`src/utils/exportData.ts`) and in "delete all data".
 8. Tests for the store and for the export round-trip.
@@ -46,7 +47,7 @@ Missing any of these silently breaks sync, backup or reset:
   keeping the key. If a rename is unavoidable, add a `version` + `migrate` to the `persist`
   options that carries the old value over.
 - New optional fields on synced records: add the column to `schema.sql` **and** to
-  `OPTIONAL_COLUMNS` in `cloudSync.ts`, so projects that haven't re-run the schema degrade
+  that table's `optionalColumns` in `cloudSync.ts`, so projects that haven't re-run the schema degrade
   instead of breaking.
 - IndexedDB data from older versions must keep loading. Treat new fields as optional when reading.
 

@@ -7,8 +7,17 @@ fileMatchPattern: ["supabase/**", "src/services/cloudSync.ts", "src/services/sup
 
 Read the header comment in `src/services/cloudSync.ts` before changing sync. In short:
 IndexedDB is the source of truth on the device; Supabase is the source of truth across devices.
-Pushes are fire-and-forget, failures queue in localStorage and retry on boot and on `online`,
-and sign-in or boot pulls everything and overwrites the local cache (last write wins per row).
+
+- **Local first.** The app loads from IndexedDB, then `syncWithCloud()` runs in the background
+  and the stores reload only if it changed something. Never await sync before showing data.
+- **Outbox.** Every push is queued in localStorage first and removed once it succeeds, one op
+  per record (latest wins), tagged with the user it belongs to. It is retried on boot and on `online`.
+- **Deletes are tombstones.** A delete writes a row to `deleted_records` and removes the record's
+  row. A pull deletes local records that have a tombstone — never ones that are merely absent
+  from the cloud.
+- **Last write wins per record, on `updatedAt`.** A pull takes newer cloud rows, keeps newer local
+  records and pushes them back up. Every mutation must therefore bump `updatedAt`.
+- **Table-driven.** Each table is one `SyncTable` entry in `TABLES`; don't add per-table branches.
 
 ## Rules
 
@@ -20,8 +29,10 @@ and sign-in or boot pulls everything and overwrites the local cache (last write 
   **row-level security enabled**, and policies limiting all access to `auth.uid() = user_id`.
 - Column names are `snake_case` and map explicitly to `camelCase` fields in `cloudSync.ts`.
   Timestamps are `bigint` Unix milliseconds, matching the local records.
-- A column added to an existing table also goes into `OPTIONAL_COLUMNS` in `cloudSync.ts`,
+- A column added to an existing table also goes into that table's `optionalColumns` in `cloudSync.ts`,
   and the README note about re-running the schema still applies.
+- Anything that writes records to IndexedDB in bulk without going through a store (backup
+  import) must call `markRestorePending()` so the next sync uploads them.
 - Deleting all data must also clear the sync queue (`clearSyncQueue`) so deleted records
   aren't re-uploaded.
 

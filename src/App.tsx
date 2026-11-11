@@ -3,7 +3,8 @@ import { useAppInitialization } from '@/hooks/useAppInitialization'
 import { useUIStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
 import { useRestTimerStore } from '@/stores/restTimer'
-import { flushQueue, pullAndHydrate } from '@/services/cloudSync'
+import { syncWithCloud } from '@/services/cloudSync'
+import { reloadAllStores } from '@/stores/reloadAllStores'
 import { Layout } from '@/components/layout/Layout'
 import { HomeDashboard } from '@/components/home/HomeDashboard'
 import { WorkoutLibrary } from '@/components/library/WorkoutLibrary'
@@ -44,22 +45,22 @@ function App() {
   const showAuthGate = cloudEnabled && authReady && !isAuthenticated && !skipped
 
   /**
-   * Loads local data, and — when signed in — first pulls the latest from the cloud and
-   * flushes any queued offline writes so both devices converge on the same state.
+   * Loads local data first, so the app is usable straight away whatever the network is
+   * doing, then — when signed in — syncs with the cloud in the background and reloads the
+   * stores if that changed anything on this device.
    */
   const loadEverything = useCallback(async () => {
-    if (cloudEnabled && authUserId) {
-      try {
-        await flushQueue(authUserId)
-        await pullAndHydrate(authUserId)
-      } catch (err) {
-        console.error('Cloud sync failed, continuing with local data:', err)
-      }
-    }
     try {
       await initializeApp()
     } catch (err) {
       console.error('Failed to initialize app:', err)
+    }
+    if (cloudEnabled && authUserId) {
+      try {
+        if (await syncWithCloud(authUserId)) await reloadAllStores()
+      } catch (err) {
+        console.error('Cloud sync failed, continuing with local data:', err)
+      }
     }
   }, [cloudEnabled, authUserId, initializeApp])
 
