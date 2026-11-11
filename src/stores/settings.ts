@@ -22,6 +22,10 @@ interface SettingsState {
   /** Keep the screen from sleeping during a guided workout or while a rest timer runs. */
   keepScreenAwake: boolean
   libraryView: LibraryView
+  /** When a backup was last exported or restored on this device (Unix ms); `null` if never. */
+  lastBackupAt: number | null
+  /** When the backup reminder was last put off with "Later" (Unix ms); `null` if never. */
+  backupReminderSnoozedAt: number | null
 
   toggleWeightUnit: () => void
   setDistanceUnit: (unit: DistanceUnit) => void
@@ -31,12 +35,17 @@ interface SettingsState {
   setRestTimerVibrate: (enabled: boolean) => void
   setKeepScreenAwake: (enabled: boolean) => void
   setLibraryView: (view: LibraryView) => void
+  /** Records that a backup file matching this device's data exists as of now. */
+  markBackedUp: () => void
+  snoozeBackupReminder: () => void
 }
 
 /**
  * Small persisted user preferences: weight display unit, default rest timer duration,
- * rest-timer alerts, screen wake lock, Library layout, and whether local workout reminders are enabled. Persisted to localStorage (not
- * IndexedDB) since these are per-device display preferences, not workout data.
+ * rest-timer alerts, screen wake lock, Library layout, and whether local workout reminders
+ * are enabled — plus when this device was last backed up, which drives the backup
+ * reminder. Persisted to localStorage (not IndexedDB) since these are per-device facts,
+ * not workout data: a backup made on one phone says nothing about another.
  */
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -49,6 +58,8 @@ export const useSettingsStore = create<SettingsState>()(
       restTimerVibrate: true,
       keepScreenAwake: true,
       libraryView: 'list',
+      lastBackupAt: null,
+      backupReminderSnoozedAt: null,
 
       toggleWeightUnit: () => set((state) => ({ weightUnit: state.weightUnit === 'kg' ? 'lb' : 'kg' })),
       setDistanceUnit: (unit) => set({ distanceUnit: unit }),
@@ -58,6 +69,8 @@ export const useSettingsStore = create<SettingsState>()(
       setRestTimerVibrate: (enabled) => set({ restTimerVibrate: enabled }),
       setKeepScreenAwake: (enabled) => set({ keepScreenAwake: enabled }),
       setLibraryView: (view) => set({ libraryView: view }),
+      markBackedUp: () => set({ lastBackupAt: Date.now() }),
+      snoozeBackupReminder: () => set({ backupReminderSnoozedAt: Date.now() }),
     }),
     { name: 'fittrack-settings' }
   )

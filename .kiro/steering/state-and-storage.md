@@ -10,11 +10,22 @@ fileMatchPattern: ["src/stores/**", "src/services/**", "src/types/**", "src/util
 | Kind | Where | Example |
 | --- | --- | --- |
 | Workout data (the user's records) | IndexedDB via Dexie (`src/services/database.ts`), accessed only through `storageService` (`src/services/storage.ts`) | exercises, sessions, cardio, body weight, routines |
-| Per-device preferences | Zustand `persist` → localStorage key `fittrack-settings` (`src/stores/settings.ts`) | units, rest duration, sound/vibration, keep-awake |
+| Per-device preferences | Zustand `persist` → localStorage key `fittrack-settings` (`src/stores/settings.ts`) | units, rest duration, sound/vibration, keep-awake, when this device was last backed up |
 
 | In-progress guided workout (position, start time, rest end) | Zustand `persist` → localStorage key `fittrack-guided-session` (`src/stores/guidedSession.ts`) | survives tab switches and the app being killed; dropped after 12 hours |
 
 Preferences and the in-progress workout are never synced or exported. Workout data is both.
+
+## Protecting the local copy
+
+Without an account, IndexedDB on one device is the only copy of someone's history.
+
+- **Eviction.** `src/services/persistentStorage.ts` asks the browser to make storage persistent
+  (`navigator.storage.persist()`). `storageService` triggers it after the first successful save
+  of each page load — not on launch, because Firefox shows a prompt. Profile shows the result.
+- **Backup reminder.** Home shows a notice when a signed-out device has gone 30 days without an
+  export (`src/utils/backupReminder.ts`). Anything that exports or restores a backup must call
+  `markBackedUp()` — use `useBackupExport()` for exports rather than calling `downloadBackup()` directly.
 
 ## Data store pattern
 

@@ -32,6 +32,8 @@ devices is there if you want it and invisible if you don't.
   muscle balance, and a body weight trend.
 - **Your data stays yours.** No analytics, no third-party tracking, and a backup
   export/import that covers everything the app stores.
+- **Hard to lose.** The app asks the browser not to evict your data, and reminds you to
+  export a backup if you train without an account and haven't made one in a month.
 
 ## Screens
 
