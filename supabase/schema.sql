@@ -72,6 +72,16 @@ create table if not exists public.cardio_sessions (
   updated_at bigint not null
 );
 
+-- 7. Tombstones: one row per deleted record, so a delete on one device reaches the others.
+--    The record itself is removed from its own table; only its id and table name remain here.
+create table if not exists public.deleted_records (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  table_name text not null,
+  record_id uuid not null,
+  deleted_at bigint not null,
+  primary key (user_id, table_name, record_id)
+);
+
 -- Columns added after the first release. Re-running this file adds them to an existing project.
 alter table public.exercises add column if not exists notes text;
 alter table public.exercises add column if not exists rest_seconds int;
@@ -97,6 +107,7 @@ alter table public.workout_templates enable row level security;
 alter table public.workout_sessions enable row level security;
 alter table public.body_weight_logs enable row level security;
 alter table public.cardio_sessions enable row level security;
+alter table public.deleted_records enable row level security;
 
 drop policy if exists "exercises_owner" on public.exercises;
 create policy "exercises_owner" on public.exercises
@@ -120,6 +131,10 @@ create policy "cardio_sessions_owner" on public.cardio_sessions
 
 drop policy if exists "body_weight_logs_owner" on public.body_weight_logs;
 create policy "body_weight_logs_owner" on public.body_weight_logs
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "deleted_records_owner" on public.deleted_records;
+create policy "deleted_records_owner" on public.deleted_records
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Make the API pick up new tables/columns immediately rather than on its next cache refresh.

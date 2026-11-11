@@ -2,10 +2,26 @@ import { useRef } from 'react'
 import { Download, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { reloadAllStores } from '@/stores/reloadAllStores'
+import { useAuthStore } from '@/stores/auth'
+import { markRestorePending, syncWithCloud } from '@/services/cloudSync'
 import { downloadBackup, readBackupFile, restoreBackup, InvalidBackupError, type RestoreCounts } from '@/utils/exportData'
 
 function summarizeCounts(counts: RestoreCounts): string {
   return `${counts.exercises} exercises, ${counts.workoutTemplates} routines, ${counts.routines} programs, ${counts.workoutSessions} sessions, ${counts.bodyWeightLogs} body weight logs, ${counts.cardioSessions} cardio sessions`
+}
+
+/**
+ * Gets restored records into the cloud account without holding up the import. Marked
+ * first, so if this attempt fails (offline) the next sync still uploads them instead of
+ * re-applying deletions the backup was meant to undo.
+ */
+function uploadRestoredData() {
+  markRestorePending()
+  const user = useAuthStore.getState().user
+  if (!user) return
+  syncWithCloud(user.id)
+    .then((changed) => (changed ? reloadAllStores() : undefined))
+    .catch((err) => console.error('Failed to sync restored backup:', err))
 }
 
 /**
@@ -34,6 +50,7 @@ export function BackupControls() {
       const backup = await readBackupFile(file)
       const counts = await restoreBackup(backup)
       await reloadAllStores()
+      uploadRestoredData()
       toast.success(`Backup restored: ${summarizeCounts(counts)}`)
     } catch (err) {
       console.error('Failed to import backup:', err)
