@@ -82,6 +82,34 @@ create table if not exists public.deleted_records (
   primary key (user_id, table_name, record_id)
 );
 
+-- 8. Account resets: when "delete all my data" last ran for this user (Unix ms). Devices
+--    drop queued changes and local records older than this, so a device that missed the
+--    reset can't upload the deleted data again.
+create table if not exists public.account_resets (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  reset_at bigint not null
+);
+
+-- The marker only ever moves forward. If two devices reset at about the same time, the one
+-- that finishes last may carry the earlier time; keeping the greater value stops it from
+-- re-admitting data the later reset already discarded. Done in the database so it holds
+-- even for writes that race.
+create or replace function public.account_resets_keep_latest()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.reset_at := greatest(old.reset_at, new.reset_at);
+  return new;
+end;
+$$;
+
+drop trigger if exists account_resets_keep_latest on public.account_resets;
+create trigger account_resets_keep_latest
+  before update on public.account_resets
+  for each row execute function public.account_resets_keep_latest();
+
 -- Columns added after the first release. Re-running this file adds them to an existing project.
 alter table public.exercises add column if not exists notes text;
 alter table public.exercises add column if not exists rest_seconds int;
@@ -108,6 +136,7 @@ alter table public.workout_sessions enable row level security;
 alter table public.body_weight_logs enable row level security;
 alter table public.cardio_sessions enable row level security;
 alter table public.deleted_records enable row level security;
+alter table public.account_resets enable row level security;
 
 drop policy if exists "exercises_owner" on public.exercises;
 create policy "exercises_owner" on public.exercises
@@ -135,6 +164,10 @@ create policy "body_weight_logs_owner" on public.body_weight_logs
 
 drop policy if exists "deleted_records_owner" on public.deleted_records;
 create policy "deleted_records_owner" on public.deleted_records
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "account_resets_owner" on public.account_resets;
+create policy "account_resets_owner" on public.account_resets
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Make the API pick up new tables/columns immediately rather than on its next cache refresh.

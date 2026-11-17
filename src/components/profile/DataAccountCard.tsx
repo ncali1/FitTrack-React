@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth'
 import { storageService } from '@/services/storage'
-import { deleteAllCloudData, clearSyncQueue } from '@/services/cloudSync'
+import { deleteAllCloudData, clearSyncQueue, withSyncPaused } from '@/services/cloudSync'
 import { reloadAllStores } from '@/stores/reloadAllStores'
 import { BackupControls } from '@/components/settings/BackupControls'
 import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal'
@@ -24,17 +24,28 @@ export function DataAccountCard() {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  // Signed out with sync set up: the cloud copy can't be reached, so only this device is
+  // cleared. Said plainly in the button and the result, not just "all data deleted" (#11).
+  const deviceOnly = cloudEnabled && !user
+
   const handleDeleteAll = async () => {
     setDeleting(true)
     try {
-      // Cloud first: if it fails we stop with the local copy intact, rather than wiping
-      // this device only for the next sync to bring everything back.
-      if (user) await deleteAllCloudData(user.id)
-      clearSyncQueue()
-      await storageService.clearAllData()
+      // Sync is paused so a background sync can't write pulled records back after the
+      // clear. Cloud first: if it fails we stop with the local copy intact, rather than
+      // wiping this device only for the next sync to bring everything back.
+      await withSyncPaused(async () => {
+        if (user) await deleteAllCloudData(user.id)
+        clearSyncQueue()
+        await storageService.clearAllData()
+      })
       await reloadAllStores()
       setConfirmingDelete(false)
-      toast.success('All data deleted')
+      if (deviceOnly) {
+        toast.success('Deleted from this device. Your cloud copy is unchanged: sign in and delete again to remove it.')
+      } else {
+        toast.success('All data deleted')
+      }
     } catch (err) {
       console.error('Failed to delete all data:', err)
       toast.error('Failed to delete your data. Nothing on this device was removed.')
@@ -123,15 +134,15 @@ export function DataAccountCard() {
             This permanently deletes every exercise, routine, program, workout, cardio session, and body weight entry on this device
             {user ? ' and in your cloud account' : ''}. Export a backup first if you might want it back.
           </p>
-          {cloudEnabled && !user && (
+          {deviceOnly && (
             <p className="text-xs text-ink-muted">
-              You’re signed out, so anything already synced to your account stays there and will return when you sign
-              in.
+              You’re signed out, so this only clears this device. Anything already synced to your account stays there
+              and will return when you sign in. To delete it too, sign in first.
             </p>
           )}
           <div className="flex gap-2">
             <button onClick={handleDeleteAll} disabled={deleting} className="btn-danger flex-1">
-              {deleting ? 'Deleting…' : 'Yes, delete everything'}
+              {deleting ? 'Deleting…' : deviceOnly ? 'Delete from this device' : 'Yes, delete everything'}
             </button>
             <button onClick={() => setConfirmingDelete(false)} disabled={deleting} className="btn-ghost flex-1">
               Cancel
