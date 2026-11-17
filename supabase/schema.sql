@@ -90,6 +90,26 @@ create table if not exists public.account_resets (
   reset_at bigint not null
 );
 
+-- The marker only ever moves forward. If two devices reset at about the same time, the one
+-- that finishes last may carry the earlier time; keeping the greater value stops it from
+-- re-admitting data the later reset already discarded. Done in the database so it holds
+-- even for writes that race.
+create or replace function public.account_resets_keep_latest()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.reset_at := greatest(old.reset_at, new.reset_at);
+  return new;
+end;
+$$;
+
+drop trigger if exists account_resets_keep_latest on public.account_resets;
+create trigger account_resets_keep_latest
+  before update on public.account_resets
+  for each row execute function public.account_resets_keep_latest();
+
 -- Columns added after the first release. Re-running this file adds them to an existing project.
 alter table public.exercises add column if not exists notes text;
 alter table public.exercises add column if not exists rest_seconds int;
