@@ -372,6 +372,12 @@ export function clearSyncQueue() {
   localStorage.removeItem(RESTORE_PENDING_KEY)
 }
 
+/** Set while "delete all my data" runs, so no sync, flush or upload starts underneath it (#12). */
+let resetInProgress = false
+
+/** Uploads `push()` has started and not finished, so a reset can wait for them. */
+const directSends = new Set<Promise<void>>()
+
 // ── Talking to Supabase ─────────────────────────────────────────────────────
 
 /** Upserts rows, retrying without the table's optional columns if it predates them. */
@@ -423,17 +429,23 @@ async function send(userId: string, op: QueueOp) {
  * and a failed sync must not surface as an unhandled rejection mid-workout.
  */
 async function push(userId: string, op: QueueOp) {
-  if (!isCloudEnabled()) return
+  // During a full reset the change is part of what is being deleted, locally and in the
+  // cloud, so neither queue nor send it.
+  if (!isCloudEnabled() || resetInProgress) return
   try {
     enqueue(op)
   } catch (err) {
     console.error('Failed to queue a change for cloud sync:', err)
   }
+  const sending = send(userId, op)
+  directSends.add(sending)
   try {
-    await send(userId, op)
+    await sending
     dequeue(op)
   } catch {
     // Stays in the outbox for the next flushQueue().
+  } finally {
+    directSends.delete(sending)
   }
 }
 
@@ -478,9 +490,6 @@ export const syncUpsertCardioSession = (userId: string, session: CardioSession) 
 export const syncDeleteCardioSession = (userId: string, id: string) => pushDelete(userId, 'cardio_sessions', id)
 
 let flushInFlight: Promise<void> | null = null
-
-/** Set while "delete all my data" runs, so no sync or flush starts underneath it (#12). */
-let resetInProgress = false
 
 /** When the change an op carries was made on this device. */
 const changedAt = (op: QueueOp) => (op.kind === 'upsert' ? op.payload.updatedAt : op.deletedAt)
@@ -829,13 +838,13 @@ export function markRestorePending() {
 }
 
 /**
- * Runs a full data reset with sync paused: no new sync or flush starts, and one already
- * running finishes first, so nothing it pulled is written back after the reset (#12).
+ * Runs a full data reset with sync paused: no new sync, flush or upload starts, and any
+ * already running finish first, so nothing is written back after the reset (#12).
  */
 export async function withSyncPaused<T>(reset: () => Promise<T>): Promise<T> {
   resetInProgress = true
   try {
-    await Promise.allSettled([syncInFlight, flushInFlight])
+    await Promise.allSettled([syncInFlight, flushInFlight, ...directSends])
     return await reset()
   } finally {
     resetInProgress = false

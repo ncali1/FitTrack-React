@@ -19,6 +19,8 @@ const cloud = vi.hoisted(() => ({
   upsertError: (_table: string, _row: Row): Failure => null,
   deleteError: (_table: string): Failure => null,
   selectError: (_table: string): Failure => null,
+  /** When set, upserts wait for it before doing anything, to hold a request in flight. */
+  upsertGate: null as Promise<void> | null,
   /** Runs just before an upsert is applied, to simulate things happening mid-request. */
   onUpsert: (_table: string, _row: Row): void => {},
 }))
@@ -64,6 +66,7 @@ vi.mock('./supabaseClient', () => {
     getSupabase: () => ({
       from: (table: string) => ({
         upsert: async (input: Row | Row[], options?: { onConflict: string }) => {
+          if (cloud.upsertGate) await cloud.upsertGate
           const rows = Array.isArray(input) ? input : [input]
           const key = (options?.onConflict ?? 'id').split(',')
           for (const row of rows) {
@@ -213,6 +216,7 @@ describe('cloudSync', () => {
     cloud.upsertError = () => null
     cloud.deleteError = () => null
     cloud.selectError = () => null
+    cloud.upsertGate = null
     cloud.onUpsert = () => {}
     for (const map of Object.values(local)) map.clear()
   })
@@ -862,6 +866,35 @@ describe('cloudSync', () => {
 
       expect(local.exercises.size).toBe(0)
       expect(queued()).toHaveLength(1)
+    })
+
+    // CodeRabbit on #30: direct uploads from push() joined neither in-flight promise.
+    it('waits for a direct upload that is already in flight before starting the reset', async () => {
+      let release!: () => void
+      cloud.upsertGate = new Promise((resolve) => (release = resolve))
+      const upload = syncUpsertExercise('u1', exercise)
+
+      let uploadedBeforeReset: boolean | null = null
+      const reset = withSyncPaused(async () => {
+        uploadedBeforeReset = cloudIds('exercises').includes('ex1')
+      })
+      // Give a reset that doesn't wait every chance to run while the upload is held open.
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(uploadedBeforeReset).toBeNull()
+
+      release()
+      await Promise.all([upload, reset])
+
+      expect(uploadedBeforeReset).toBe(true)
+    })
+
+    it('neither queues nor sends a change made while the reset runs', async () => {
+      await withSyncPaused(async () => {
+        await syncUpsertExercise('u1', exercise)
+      })
+
+      expect(queued()).toEqual([])
+      expect(cloud.tables.exercises).toBeUndefined()
     })
 
     it('lets syncs run again afterwards, even if the reset failed', async () => {
