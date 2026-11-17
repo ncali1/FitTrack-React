@@ -170,6 +170,7 @@ So until the schema is re-run, newer data stays on the device that created it, a
 - **Row-level security is enabled on every table**, including `deleted_records` and `account_resets`.
 - Each table has one policy, `for all using (auth.uid() = user_id) with check (auth.uid() = user_id)`. A user can only read and write their own rows.
 - `workout_sessions` and `body_weight_logs` have `unique (user_id, date)`: one row per user per day.
+- Each synced table has a `BEFORE UPDATE` trigger, `<table>_keep_newer`, running `keep_newer_row()`: an update carrying an older `updated_at` keeps the existing row. A device decides what to upload from its last pull, so another device can save a newer version in between. The trigger makes last-write-wins hold in the database, atomically, for every upload path. Deletes get the same protection from a `updated_at <= deletedAt` filter on the delete itself.
 - The file ends with `notify pgrst, 'reload schema'` so the API sees new tables and columns immediately.
 
 The unique constraint has one visible effect in sync. If two devices each logged the same date under different ids, the upload of the second one hits a unique violation. `pushOutgoing` skips that row rather than failing the batch, and the cloud's copy stands.
