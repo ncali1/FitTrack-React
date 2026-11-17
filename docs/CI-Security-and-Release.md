@@ -125,7 +125,13 @@ Verified against the repository files and the GitHub API at the time of writing.
 
 ### Changing the ruleset
 
-`.github/rulesets/main.json` is the source of truth. Edit it in a PR, then after merging, push it to GitHub: find the id with `gh api repos/ncali1/FitTrack-React/rulesets`, then `gh api -X PUT repos/ncali1/FitTrack-React/rulesets/<id> --input .github/rulesets/main.json`. Its required checks are the job names above, so renaming a job means updating the ruleset too, or every PR will wait forever on a check that no longer runs. The `Analyze` checks pass whenever analysis completes, which is why the ruleset also has a `code_scanning` rule: a PR that adds a CodeQL security alert of high severity or above, or any error-level alert, cannot merge.
+`.github/rulesets/main.json` is the source of truth. Edit it in a PR, then after merging, push it to GitHub: find the id with `gh api repos/ncali1/FitTrack-React/rulesets`, then `gh api -X PUT repos/ncali1/FitTrack-React/rulesets/<id> --input .github/rulesets/main.json`. Its required checks are the job names above. Renaming a required job takes three steps, because a PR that only renames it can never merge: the old check never reports, and the ruleset isn't updated until after merging.
+
+1. In one PR, add the job under its new name alongside the old one, and merge it.
+2. Change the name in `main.json` and push the ruleset with the `PUT` above.
+3. In a later PR, remove the old job.
+
+The `Analyze` checks pass whenever analysis completes, which is why the ruleset also has a `code_scanning` rule: a PR that adds a CodeQL security alert of high severity or above, or any error-level alert, cannot merge.
 
 ### When a scanner flags something
 
