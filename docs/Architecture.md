@@ -127,7 +127,7 @@ Components never import `db` or `cloudSync` to write records. They call a store 
 | `restAlert.ts` | "Rest is over" beep, haptic and notification |
 | `webgl.ts` | One cached check for WebGL support |
 
-`storageService` retries a failed operation up to three times with delays of 100, 500 and 1000 ms. A quota error is not retried: it throws `StorageQuotaError` straight away, since retrying cannot help.
+`storageService` makes up to three attempts at an operation, waiting 100 ms after the first failure and 500 ms after the second. (`RETRY_DELAYS` in `storage.ts` also lists 1000 ms, but no attempt ever waits that long.) A quota error is not retried: it throws `StorageQuotaError` straight away, since retrying cannot help.
 
 ## Hooks
 

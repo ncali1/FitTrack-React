@@ -193,7 +193,9 @@ Nothing is shown in the native apps, where browser eviction does not apply.
 
 `src/components/profile/DataAccountCard.tsx`
 
-Asks for confirmation, then deletes every exercise, routine, program, workout, cardio session and body weight entry on the device, and in your cloud account if you are signed in. The cloud is cleared first, so a failure there leaves the device untouched. Per-device preferences are not reset by this button.
+Asks for confirmation, then deletes every exercise, routine, program, workout, cardio session and body weight entry on the device, and in your cloud account if you are signed in. The cloud is cleared first, so a failure there leaves the device untouched, though the cloud may already be partly cleared; try again to finish. Per-device preferences are not reset by this button.
+
+If you use the app on more than one device, clear the data on each of them, or sign them out, first. Another device with changes it has not synced yet will upload them again when it next connects.
 
 ## Installing the app
 

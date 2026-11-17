@@ -82,9 +82,9 @@ Verified against the repository files and the GitHub API at the time of writing.
 | --- | --- |
 | Lint, test and build on every PR | In place (`ci.yml`) |
 | Least-privilege permissions on the deploy workflow | In place (`deploy.yml`) |
-| Secrets kept out of git | `.gitignore` covers `.env`, `.env.local` and `*.local`. `.env.example` has names only. |
+| Local env files kept out of git | `.gitignore` covers `.env`, `.env.local` and `*.local`, and `.env.example` has names only. This only excludes those files: nothing stops a key pasted into a tracked file from being committed, since secret scanning is off (see below). |
 | Row-level security on every cloud table | In place (`supabase/schema.sql`) |
-| Only the public anon key in the client | In place (`src/services/supabaseClient.ts`) |
+| Only the public anon key in the client | A configuration rule, not a check. `src/services/supabaseClient.ts` passes whatever `VITE_SUPABASE_ANON_KEY` holds to `createClient`, and Vite embeds it in the public bundle, so a service-role key put there would ship to every visitor. Only ever set the anon key. |
 
 ### Intended but not set up
 
@@ -127,7 +127,7 @@ Never disable a rule, skip a check or weaken a ruleset to get CI green.
 | Every cloud table is limited to `auth.uid() = user_id` | `supabase/schema.sql` |
 | Password reset does not reveal which emails have accounts | `src/stores/auth.ts`, `src/components/auth/AuthGate.tsx` |
 | Imported backup files are shape-checked before anything is written | `assertBackupShape` in `src/utils/exportData.ts` |
-| The outbox is tagged per user, so queued changes never upload into another account | `src/services/cloudSync.ts` |
+| The outbox is tagged per user, so queued changes do not upload into another account (except untagged entries left by older app versions; see [Cloud Sync and Auth](Cloud-Sync-and-Auth.md)) | `src/services/cloudSync.ts` |
 | No analytics or third-party tracking | `.kiro/steering/product.md`, `public/privacy.html` |
 
 If a secret is ever committed, it has to be rotated. Deleting it from the repo is not enough, because it stays in history.

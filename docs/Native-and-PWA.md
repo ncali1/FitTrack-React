@@ -86,7 +86,7 @@ Never hard-code an absolute `/` path to an asset in app code. Use `import.meta.e
 | A rest that "ends" long after its real end time is not news | The beep and haptic are skipped if the countdown finishes more than 3 seconds late, for example after the app was suspended | `STALE_AFTER_MS` in `restAlert.ts` |
 | Screen wake locks are dropped when the page is hidden | The lock is re-acquired on `visibilitychange`. The hook is reference-counted so several components can hold it at once. | `src/hooks/useKeepAwake.ts` |
 | Chrome on Android rejects `new Notification()` | Rest notifications go through the service worker registration (`registration.showNotification`) when one exists | `showWebNotification()` in `restAlert.ts` |
-| Permission prompts on launch are unwelcome | Notification permission is asked the first time a rest starts. Storage persistence is asked after the first save. | `restAlert.ts`, `src/services/persistentStorage.ts` |
+| Permission prompts on launch are unwelcome | Native apps ask for notification permission the first time a rest starts. The web app never asks from a rest: it shows rest notifications only if permission was already granted (for example through workout reminders). Storage persistence is asked after the first save. | `restAlert.ts`, `src/services/persistentStorage.ts` |
 | iOS safe areas (notch, home indicator) | `pwa-safe-top` and `pwa-safe-bottom` utility classes add `env(safe-area-inset-*)` padding | `src/index.css` |
 | A page behind a sheet still scrolls, and on iOS can steal swipes | A counted scroll lock on `<html>` | `src/hooks/useBodyScrollLock.ts` |
 | A phone will kill a backgrounded app mid-workout | The guided session's position is persisted to localStorage | `src/stores/guidedSession.ts` |
@@ -108,6 +108,8 @@ Only one rest is tracked at a time. The latest `armRestAlert()` wins.
 ## Live reload on a simulator
 
 `npm run ios:live` sets `CAP_SERVER_URL=http://localhost:5173`, which makes the native shell load the Vite dev server (with `cleartext: true`). It must never be set for a build that ships.
+
+Stopping the command is not enough to undo it. `npx cap sync ios` has already written the localhost URL into `ios/App/App/capacitor.config.json` (a generated, git-ignored file), and an Xcode archive bundles whatever that file holds. An app archived in that state tries to load localhost instead of its bundled UI. Before archiving, run `npm run ios`, or `npm run build` then `npx cap sync ios`, with `CAP_SERVER_URL` unset.
 
 ## TODO
 

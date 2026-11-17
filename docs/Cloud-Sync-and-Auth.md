@@ -59,9 +59,11 @@ Each store mutation calls `syncUpsertX` or `syncDeleteX` without awaiting it.
 | Property | Why |
 | --- | --- |
 | One operation per record, the latest | Keeps the outbox small. Only the newest state matters. |
-| Tagged with the user id | A queued change is never uploaded into someone else's account. |
+| Tagged with the user id | A queued change is not uploaded into someone else's account. **Exception:** entries queued by app versions from before tagging carry no user id, and `sendQueued()` sends them under whoever is signed in. If one account left such an entry unsent and a different account then signs in on that device, the record goes to the second account. Only pre-upgrade entries are affected; `push()` always tags new ones. |
 | `push()` never throws | Callers do not await it, and a failed sync must not surface as an unhandled rejection mid-workout. |
 | Retried by `flushQueue()` | Runs on app boot (as the first half of `syncWithCloud`) and on the browser's `online` event. |
+
+The retry guarantee depends on the outbox write in step 1 succeeding. If localStorage rejects it (for example, it is full) **and** the immediate send also fails, `push()` logs and swallows both errors, so nothing is left to retry. The record is safe on the device but may not reach the cloud until it is edited again or a later pull finds the local copy newer than the cloud's.
 
 ### Deletes are tombstones
 
@@ -90,13 +92,24 @@ If the cloud cannot be read, the pull throws before touching anything local, so 
 
 A backup might contain records that were deleted earlier and so have tombstones. Without special handling, the next sync would delete them again.
 
-`markRestorePending()` sets a flag. On the next sync, the device's records win over tombstones: the tombstones are removed and records missing from the cloud are uploaded. The flag is cleared once that upload succeeds.
+`markRestorePending()` sets a flag. On the next sync, the device's records win over tombstones: the tombstones are removed and records missing from the cloud are uploaded. The flag is cleared once that upload step finishes without an error.
+
+Clearing the flag does not mean every restored record is now in the cloud:
+
+- **Same-date collisions are skipped.** If a restored workout has the same date as a different workout already in the cloud, the upload hits a unique violation, `pushOutgoing()` skips that row, and the cloud's copy stands.
+- **Newer cloud copies win.** The restore does not change last-write-wins: a restored record whose cloud copy has a newer `updatedAt` is replaced on the device by the cloud copy.
+
+Keep the backup file until you have checked the restored data on another device.
 
 Anything that writes records to IndexedDB in bulk without going through a store must call `markRestorePending()`.
 
 ### Deleting everything
 
-`deleteAllCloudData()` writes a tombstone for every row and then deletes the rows, so the user's other devices clear their copies too. It also clears the outbox. The caller (`src/components/profile/DataAccountCard.tsx`) deletes the cloud first and the local copy second. If the cloud step fails, the device is left untouched, so the two stay in step.
+`deleteAllCloudData()` writes a tombstone for every row and then deletes the rows, so the user's other devices clear their copies too. It also clears the outbox. The caller (`src/components/profile/DataAccountCard.tsx`) deletes the cloud first and the local copy second. If the cloud step fails, the device is left untouched.
+
+That does not keep the two fully in step. Tables are cleared one at a time, so a failure partway through leaves the earlier tables already deleted in the cloud (with tombstones) while the device still has everything. Retrying the delete finishes the job; until then, other devices will drop the records from the tables that were cleared.
+
+Another device that is offline with unsynced changes can also bring data back. Its outbox still holds those upserts, and when it reconnects `flushQueue()` sends them, which recreates the rows in the cloud. A row edited before the deletion stays hidden because its tombstone is newer, but it is stored in the cloud again; a row edited after the deletion reappears everywhere. Clear the data on every device, or sign them out, before relying on the cloud deletion.
 
 Deleting all data must also call `clearSyncQueue()`, so deleted records are not re-uploaded later.
 

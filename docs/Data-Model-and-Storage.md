@@ -184,10 +184,11 @@ interface Backup {
 | --- | --- |
 | Validation | `readBackupFile` checks that `version` is a number, `exportedAt` is a string, and each list is an array of objects. Anything else throws `InvalidBackupError`. |
 | Restore is a merge | `restoreBackup` upserts each record by id. Nothing already stored but absent from the file is deleted. |
+| Body weight merges by date | `saveBodyWeightLog` keeps one entry per date. A backup entry whose date matches an existing local entry overwrites that entry's weight, even if the ids differ. |
 | Older files | The two optional lists default to empty, so version 1 and 2 files still import. |
 | Not included | Preferences and the in-progress guided workout. |
 
-After an import, `BackupControls.tsx` reloads the stores, calls `markRestorePending()` so the next sync uploads the restored records, and calls `markBackedUp()`.
+After an import, `BackupControls.tsx` reloads the stores, calls `markRestorePending()` so the next sync uploads the restored records, and calls `markBackedUp()`. The upload covers records the cloud lacks and records newer than their cloud copy; a restored record whose cloud copy is newer is replaced by the cloud copy (see [Cloud Sync and Auth](Cloud-Sync-and-Auth.md#after-a-backup-import)).
 
 Anything that exports or restores a backup must call `markBackedUp()`. For exports, use the `useBackupExport()` hook rather than calling `downloadBackup()` directly.
 
@@ -218,7 +219,11 @@ The full checklist from `.kiro/steering/state-and-storage.md`. Missing any step 
 
 ## Changing existing data safely
 
-- **New optional field on a synced record**: add the column to `schema.sql` and to that table's `optionalColumns` in `cloudSync.ts`. Projects that have not re-run the schema then degrade instead of breaking.
+- **New optional field on a synced record**, all in the same change:
+  1. Add the column to `schema.sql`.
+  2. In `cloudSync.ts`, add the column to that table's row type, write it in `toRow`, read it in `fromRow`, and list it in `optionalColumns`. Without the `toRow`/`fromRow` mappings the field saves locally but never reaches other devices.
+
+  Projects that have not re-run the schema then degrade instead of breaking: the upload is retried without the optional columns. That fallback has a cost. The operation counts as sent and leaves the outbox, so once the schema is updated, records whose `updatedAt` did not change are not uploaded again, and the field stays missing on other devices until each record is edited.
 - **Old IndexedDB data must keep loading.** Treat new fields as optional when reading.
 
 ## Related pages

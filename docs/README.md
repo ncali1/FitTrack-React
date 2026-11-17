@@ -16,7 +16,7 @@ These come from `.kiro/steering/product.md` and override convenience when the tw
 | Offline-first, local-first | All data lives on the device in IndexedDB. Every feature works with no network and no account. The UI never waits on a network request. |
 | Cloud sync is optional | Supabase sign-in and sync exist only when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set at build time. With them unset the app behaves the same, without sign-in or cross-device sync. |
 | Phone first | Designed for one-handed use mid-workout: large tap targets, little typing, sensible defaults, nothing that needs hover. Desktop is secondary. |
-| Respect the user's data | No analytics or third-party tracking. Destructive actions ask for confirmation. Backup export and import cover every kind of stored record. |
+| Respect the user's data | No analytics or third-party tracking. Destructive actions ask for confirmation. Backup export and import cover every kind of workout record (exercises, routines, programs, workouts, cardio, body weight). Per-device preferences and an in-progress guided workout are not included. |
 
 ## Tech stack
 

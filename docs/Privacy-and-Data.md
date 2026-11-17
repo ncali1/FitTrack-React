@@ -22,7 +22,7 @@ What FitTrack stores, where it goes, and how to remove it. The user-facing polic
 | Deletion markers | No | `deleted_records` |
 | Preferences (units, rest timer, sound, vibration, keep awake, reminders, Library layout) | localStorage | Never |
 | When you last backed up, and when you snoozed the reminder | localStorage | Never |
-| An in-progress guided workout | localStorage, for up to 12 hours | Never |
+| An in-progress guided workout | localStorage, until it is finished or replaced. The 12 hours is a resume limit, not a retention limit: an older session is ignored when the app opens, but the stored copy stays until the guided-session state next changes. | Never |
 | Flags: onboarding seen, sign-in skipped, install banner dismissed, last nudge date | localStorage | Never |
 | Changes waiting to sync | localStorage, until sent | They become the rows above |
 | Sign-in session | Browser storage, managed by the Supabase client | |
