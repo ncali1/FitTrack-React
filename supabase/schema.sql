@@ -170,5 +170,48 @@ drop policy if exists "account_resets_owner" on public.account_resets;
 create policy "account_resets_owner" on public.account_resets
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Last write wins, enforced here -------------------------------------------
+-- Devices decide what to upload from a pull, so another device can save a newer version
+-- between that pull and the upload. Without this, the older copy would overwrite it. An
+-- update carrying an older updated_at keeps the existing row instead (returning OLD makes
+-- the update a no-op). Doing it in a trigger makes the check atomic under the row lock,
+-- and covers every upsert the app sends (#31).
+create or replace function public.keep_newer_row()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.updated_at < old.updated_at then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists exercises_keep_newer on public.exercises;
+create trigger exercises_keep_newer before update on public.exercises
+  for each row execute function public.keep_newer_row();
+
+drop trigger if exists routines_keep_newer on public.routines;
+create trigger routines_keep_newer before update on public.routines
+  for each row execute function public.keep_newer_row();
+
+drop trigger if exists workout_templates_keep_newer on public.workout_templates;
+create trigger workout_templates_keep_newer before update on public.workout_templates
+  for each row execute function public.keep_newer_row();
+
+drop trigger if exists workout_sessions_keep_newer on public.workout_sessions;
+create trigger workout_sessions_keep_newer before update on public.workout_sessions
+  for each row execute function public.keep_newer_row();
+
+drop trigger if exists body_weight_logs_keep_newer on public.body_weight_logs;
+create trigger body_weight_logs_keep_newer before update on public.body_weight_logs
+  for each row execute function public.keep_newer_row();
+
+drop trigger if exists cardio_sessions_keep_newer on public.cardio_sessions;
+create trigger cardio_sessions_keep_newer before update on public.cardio_sessions
+  for each row execute function public.keep_newer_row();
+
 -- Make the API pick up new tables/columns immediately rather than on its next cache refresh.
 notify pgrst, 'reload schema';

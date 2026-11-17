@@ -420,7 +420,15 @@ async function send(userId: string, op: QueueOp) {
     return
   }
   await writeTombstones(userId, op.table, [op.id], op.deletedAt)
-  const { error } = await getSupabase()!.from(op.table).delete().eq('id', op.id).eq('user_id', userId)
+  // Only a copy from before the delete goes: if another device saved a newer version
+  // meanwhile, that edit wins (last write wins), and the tombstone, being older, doesn't
+  // hide it. The filter runs in the database, so it holds even mid-race (#31).
+  const { error } = await getSupabase()!
+    .from(op.table)
+    .delete()
+    .eq('id', op.id)
+    .eq('user_id', userId)
+    .lte('updated_at', op.deletedAt)
   if (error) throw error
 }
 
