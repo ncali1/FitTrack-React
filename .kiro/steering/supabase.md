@@ -34,7 +34,11 @@ IndexedDB is the source of truth on the device; Supabase is the source of truth 
 - Anything that writes records to IndexedDB in bulk without going through a store (backup
   import) must call `markRestorePending()` so the next sync uploads them.
 - Deleting all data must also clear the sync queue (`clearSyncQueue`) so deleted records
-  aren't re-uploaded.
+  aren't re-uploaded, and must run inside `withSyncPaused()` so a sync already running
+  can't write pulled records back after the local clear.
+- `account_resets.reset_at` is a tombstone for everything changed before it: flushes drop
+  older queued ops, pulls delete older records. Anything new that pushes or applies records
+  must respect it.
 
 ## Secrets
 

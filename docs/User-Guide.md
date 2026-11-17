@@ -195,7 +195,9 @@ Nothing is shown in the native apps, where browser eviction does not apply.
 
 Asks for confirmation, then deletes every exercise, routine, program, workout, cardio session and body weight entry on the device, and in your cloud account if you are signed in. The cloud is cleared first, so a failure there leaves the device untouched, though the cloud may already be partly cleared; try again to finish. Per-device preferences are not reset by this button.
 
-If you use the app on more than one device, a device with changes it has not synced yet can upload them again later. To delete everything, tap **Delete all my data** on every device, each one online and showing as signed in. Don't sign devices out first: signing out one device can sign out the others too, and a device that is not signed in only clears itself, not the cloud. See [Cloud Sync and Auth](Cloud-Sync-and-Auth.md#deleting-everything) for the details and the limits.
+If you use the app on more than one device, you only need to do this once, signed in. Your other devices clear their copies the next time they sync, and changes they hadn't synced yet are discarded rather than uploaded again. Anything you add after the delete is kept as normal.
+
+If you are signed out, the button reads **Delete from this device**: it clears only this device, and your cloud copy stays. Sign in and delete again to remove that too. See [Cloud Sync and Auth](Cloud-Sync-and-Auth.md#deleting-everything) for the details and the limits.
 
 ## Installing the app
 

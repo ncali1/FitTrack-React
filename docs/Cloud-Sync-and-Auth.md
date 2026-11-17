@@ -105,27 +105,32 @@ Anything that writes records to IndexedDB in bulk without going through a store 
 
 ### Deleting everything
 
-`deleteAllCloudData()` writes a tombstone for every row and then deletes the rows, so the user's other devices clear their copies too. It also clears the outbox. The caller (`src/components/profile/DataAccountCard.tsx`) deletes the cloud first and the local copy second. If the cloud step fails, the device is left untouched.
+The button (`src/components/profile/DataAccountCard.tsx`) runs the whole reset inside `withSyncPaused()`. No sync or flush starts on this device while it runs, and one already running finishes first, so a pull that read the cloud before the delete cannot write its records back after the local clear. Inside the pause it deletes the cloud copy, then clears the outbox (`clearSyncQueue()`), then clears IndexedDB. If the cloud step fails, the device is left untouched.
 
-That does not keep the two fully in step. Tables are cleared one at a time, so a failure partway through leaves the earlier tables already deleted in the cloud (with tombstones) while the device still has everything. Retrying the delete finishes the job; until then, other devices will drop the records from the tables that were cleared.
+`deleteAllCloudData()` writes a tombstone for every row and deletes the rows. Last, it records the reset time in `account_resets` (one row per user, `reset_at` in Unix ms). The marker comes last so a failed delete does not announce a reset that did not happen. Tables are still cleared one at a time, so a failure partway through leaves the earlier tables deleted (with tombstones) and no marker. Retrying finishes the job.
 
-**Other devices can bring data back.** Tombstones only cover rows that are in the cloud when the delete runs. Another device's unsynced changes are not covered:
+**The reset marker is what stops other devices bringing data back.** It works as a tombstone for everything changed at or before `reset_at`:
 
-- Its outbox still holds them, and when that account next syncs there, `flushQueue()` uploads them. A record that was never uploaded before has no tombstone, so it reappears on every device; one that had been uploaded is recreated in the cloud but stays hidden while its tombstone is newer than its last edit.
-- Signing out does not prevent this: `signOut()` leaves the outbox in place.
-- A flush already in progress on another device works from its own copy of the outbox, so it can still upload after the delete. Nothing serialises the delete with other devices' syncs.
+| Where | What happens to anything changed before the reset |
+| --- | --- |
+| `flushQueue()` on another device | Queued changes are dropped, not uploaded. The flush reads the marker first; if it cannot read it, it sends nothing and tries again later. |
+| `pullAndHydrate()` | Local records are deleted. Stale cloud rows (uploaded by a device that had not heard of the reset) are ignored and then removed, so they don't hold a `(user_id, date)` slot that a new workout needs. The removal is filtered on `updated_at <= reset_at` in the database, so a row another device updated in the meantime is left alone. If this device has a newer copy of a stale row, it uploads it in its place. |
+| A flush already running elsewhere | It can still upload, but whatever it uploads is older than the marker, so pulls ignore it and remove it. |
 
-What to do today: run "delete all my data" on **every** device, each one online and showing as signed in. Each run deletes the cloud copy first and then clears that device's outbox, so whichever device goes last leaves the cloud empty. This covers the first two cases. It does not stop a flush that is already running on another device; nothing in the app can cancel that.
+Changes made **after** the reset are unaffected, on any device.
 
-Avoid signing devices out as part of this. `signOut()` uses Supabase's default global scope, so signing out one device revokes the other devices' sessions too, and it can fail offline while the app still shows the user as signed out. A device whose session has quietly lapsed has no `user`, so the button skips the cloud step and still reports "All data deleted".
+The marker only moves forward. A database trigger (`account_resets_keep_latest`) keeps the greater `reset_at` on update, so if two devices reset at about the same time, the one finishing last can't move it back and re-admit data the later reset discarded.
 
-Making this safe automatically needs code changes:
+Two edge cases:
 
-- a per-account reset marker that devices check before flushing or applying a pull;
-- making delete-all wait for a sync already running on the same device, since a pull that read the cloud before the delete can write its records back after the local clear;
-- refusing to report success when the cloud step was skipped.
+- **Restoring a backup after a reset.** Its records are older than the marker and would be deleted again. On the restore's first sync, records older than `reset_at` are re-dated to now (or `reset_at + 1`, if this device's clock is behind) before they are uploaded, so the restore wins on every device.
+- **Clock differences.** `reset_at` comes from the clock of the device that ran the reset, and is compared with other devices' `updatedAt`. A record edited on a device whose clock is behind, within that difference of the reset, can be treated as part of the deleted data.
 
-Deleting all data must also call `clearSyncQueue()`, so deleted records are not re-uploaded later.
+**Signed out.** With no `user` the cloud cannot be reached, so the button says "Delete from this device", and the result says the cloud copy is unchanged. To delete the cloud copy too, sign in and run it again.
+
+`signOut()` signs out **this device only** (`scope: 'local'`). Supabase's default global scope revoked every device's session, which left the others quietly signed out. If the sign-out request fails (for example offline), Supabase keeps the session, and so does the app: the user stays signed in and sees an error.
+
+A project without `account_resets` (schema not re-run) still gets the deletes and tombstones, but not the protection against other devices' unsynced changes.
 
 ## Table-driven design
 
@@ -140,6 +145,7 @@ Each synced table is one `SyncTable` entry in the `TABLES` object in `cloudSync.
 | `body_weight_logs` | `BodyWeightLog` | none |
 | `cardio_sessions` | `CardioSession` | none |
 | `deleted_records` | tombstones | not a `SyncTable` |
+| `account_resets` | when "delete all my data" last ran | not a `SyncTable` |
 
 Column names are `snake_case` and map explicitly to `camelCase` fields. Timestamps are `bigint` Unix milliseconds, matching local records.
 
@@ -152,6 +158,7 @@ A Supabase project whose owner has not re-run `supabase/schema.sql` may lack new
 | An optional column | The upsert is retried without the optional columns. On pull, the local value for that field is kept. |
 | A whole table | That table's local records are left alone. |
 | `deleted_records` | Deletes still happen, but do not reach other devices. |
+| `account_resets` | "Delete all my data" still deletes, but another device's unsynced changes can bring data back. |
 
 So until the schema is re-run, newer data stays on the device that created it, and a delete on one device does not remove the record from the others.
 
@@ -160,7 +167,7 @@ So until the schema is re-run, newer data stays on the device that created it, a
 `supabase/schema.sql`.
 
 - Every table has `user_id uuid not null references auth.users(id) on delete cascade`.
-- **Row-level security is enabled on every table**, including `deleted_records`.
+- **Row-level security is enabled on every table**, including `deleted_records` and `account_resets`.
 - Each table has one policy, `for all using (auth.uid() = user_id) with check (auth.uid() = user_id)`. A user can only read and write their own rows.
 - `workout_sessions` and `body_weight_logs` have `unique (user_id, date)`: one row per user per day.
 - The file ends with `notify pgrst, 'reload schema'` so the API sees new tables and columns immediately.

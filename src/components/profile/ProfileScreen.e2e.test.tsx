@@ -384,6 +384,8 @@ describe('E2E: ProfileScreen', () => {
     })
 
     it('deletes all data only after the second, explicit confirmation', async () => {
+      // Local-only mode, set explicitly: the default comes from the developer's .env.
+      useAuthStore.setState({ cloudEnabled: false, user: null })
       const user = userEvent.setup()
       await useWorkoutTemplatesStore.getState().createTemplate('Legs', ['a'])
       render(<ProfileScreen />)
