@@ -27,6 +27,8 @@ IndexedDB is the source of truth on the device; Supabase is the source of truth 
   Never write a destructive migration (`drop table`, `drop column`) into it.
 - Every table has `user_id uuid not null references auth.users(id) on delete cascade`,
   **row-level security enabled**, and policies limiting all access to `auth.uid() = user_id`.
+- Every synced table also gets a `<table>_keep_newer` trigger running `keep_newer_row()`, so an
+  upload can't overwrite a newer row. Cloud deletes of a record filter on `updated_at`.
 - Column names are `snake_case` and map explicitly to `camelCase` fields in `cloudSync.ts`.
   Timestamps are `bigint` Unix milliseconds, matching the local records.
 - A column added to an existing table also goes into that table's `optionalColumns` in `cloudSync.ts`,

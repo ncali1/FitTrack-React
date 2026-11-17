@@ -76,8 +76,15 @@ vi.mock('./supabaseClient', () => {
             if (error) return { error }
           }
           const existing = cloud.tables[table] ?? []
-          const replaced = existing.filter((old) => !rows.some((row) => key.every((k) => old[k] === row[k])))
-          cloud.tables[table] = [...replaced, ...rows]
+          const sameKey = (a: Row, b: Row) => key.every((k) => a[k] === b[k])
+          // Mirrors the keep_newer_row trigger in supabase/schema.sql: an update carrying
+          // an older updated_at leaves the existing row as it is.
+          const applied = rows.filter((row) => {
+            const old = existing.find((candidate) => sameKey(candidate, row))
+            return !(old && typeof old.updated_at === 'number' && Number(row.updated_at) < old.updated_at)
+          })
+          const replaced = existing.filter((old) => !applied.some((row) => sameKey(old, row)))
+          cloud.tables[table] = [...replaced, ...applied]
           return { error: null }
         },
         select: (columns: string) => query(table, 'select', columns),
@@ -835,6 +842,45 @@ describe('cloudSync', () => {
       await pullAndHydrate('u1')
 
       expect(local.exercises.get('ex1')).toMatchObject({ updatedAt: 6 })
+    })
+  })
+
+  // #31: another device can save a newer version between this device's pull and its upload.
+  describe('when another device saved a newer version first', () => {
+    it('does not let a delete remove a version saved after it', async () => {
+      seed('exercises', [{ ...exerciseRow, updated_at: 9 }])
+      vi.spyOn(Date, 'now').mockReturnValue(5)
+
+      await syncDeleteExercise('u1', 'ex1')
+
+      expect(cloud.tables.exercises).toMatchObject([{ id: 'ex1', updated_at: 9 }])
+      expect(cloud.tables.deleted_records).toMatchObject([{ record_id: 'ex1', deleted_at: 5 }])
+      expect(queued()).toEqual([])
+    })
+
+    it('still removes a copy last saved before the delete', async () => {
+      seed('exercises', [exerciseRow]) // updated_at 2
+      vi.spyOn(Date, 'now').mockReturnValue(5)
+
+      await syncDeleteExercise('u1', 'ex1')
+
+      expect(cloudIds('exercises')).toEqual([])
+    })
+
+    // The database keeps the newer row (keep_newer_row in schema.sql, mirrored by the fake).
+    // These check the app copes: the upload counts as done, and the next pull brings the
+    // newer version down instead of fighting over it.
+    it('treats an older upload the database ignored as sent, and pulls the newer version', async () => {
+      seed('exercises', [{ ...exerciseRow, name: 'Incline Bench', updated_at: 9 }])
+      const older = { ...exercise, updatedAt: 5 }
+      local.exercises.set('ex1', older)
+
+      await syncUpsertExercise('u1', older)
+      expect(queued()).toEqual([])
+      expect(cloud.tables.exercises).toMatchObject([{ name: 'Incline Bench', updated_at: 9 }])
+
+      expect(await pullAndHydrate('u1')).toBe(true)
+      expect(local.exercises.get('ex1')).toMatchObject({ name: 'Incline Bench', updatedAt: 9 })
     })
   })
 
