@@ -16,6 +16,9 @@ import type { Exercise, Routine, WorkoutTemplate, WorkoutSession, BodyWeightLog,
  * - A delete writes a tombstone to `deleted_records` and then removes the row. Other
  *   devices delete their local copy when they pull the tombstone — a record that is merely
  *   absent from the cloud is never deleted locally, since it may simply not be uploaded yet.
+ * - "Delete all my data" also records the reset time in `account_resets`. It acts as a
+ *   tombstone for everything changed before it: pulls ignore and delete such records, and
+ *   flushes drop such queued changes, so a device that missed the reset can't revive them.
  * - On sign-in / app boot, `syncWithCloud()` flushes the outbox and then pulls. Conflicts
  *   are last-write-wins per record on `updatedAt`: a newer cloud row replaces the local
  *   record, a newer local record is kept and pushed back up, and a tombstone wins over
@@ -29,6 +32,7 @@ import type { Exercise, Routine, WorkoutTemplate, WorkoutSession, BodyWeightLog,
 const QUEUE_KEY = 'fittrack-sync-queue'
 const RESTORE_PENDING_KEY = 'fittrack-sync-restore-pending'
 const TOMBSTONES = 'deleted_records'
+const ACCOUNT_RESETS = 'account_resets'
 
 /** Supabase returns at most this many rows per request by default, so reads are paged. */
 const PAGE_SIZE = 1000
@@ -490,9 +494,30 @@ export const syncDeleteCardioSession = (userId: string, id: string) => pushDelet
 
 let flushInFlight: Promise<void> | null = null
 
+/** Set while "delete all my data" runs, so no sync or flush starts underneath it (#12). */
+let resetInProgress = false
+
+/** When the change an op carries was made on this device. */
+const changedAt = (op: QueueOp) => (op.kind === 'upsert' ? op.payload.updatedAt : op.deletedAt)
+
 async function sendQueued(userId: string) {
   const mine = readQueue().filter((op) => op.userId === undefined || op.userId === userId)
+  if (mine.length === 0) return
+
+  let resetAt: number
+  try {
+    resetAt = await fetchResetAt(userId)
+  } catch {
+    // Without knowing about a reset, sending could resurrect deleted data. Try next time.
+    return
+  }
+
   for (const op of mine) {
+    // Made before the account was reset on some device: it belongs to the deleted data.
+    if (changedAt(op) <= resetAt) {
+      dequeue(op)
+      continue
+    }
     try {
       await send(userId, op)
       dequeue(op)
@@ -508,7 +533,7 @@ async function sendQueued(userId: string) {
  * once it succeeds, and ops queued for a different account are left for that account.
  */
 export function flushQueue(userId: string): Promise<void> {
-  if (!isCloudEnabled()) return Promise.resolve()
+  if (!isCloudEnabled() || resetInProgress) return Promise.resolve()
   // Cleared via .finally(), which always runs after this assignment — a `finally` block
   // inside the run would fire first when there is nothing to await, leaving it set forever.
   flushInFlight ??= sendQueued(userId).finally(() => {
@@ -562,6 +587,16 @@ async function fetchTombstones(userId: string): Promise<Map<string, Map<string, 
 }
 
 /**
+ * When "delete all my data" last ran for this account, or 0 if it never has (or the
+ * project predates the `account_resets` table). Anything last changed at or before this
+ * time belongs to the deleted data, whichever device it is still waiting on (#13).
+ */
+async function fetchResetAt(userId: string): Promise<number> {
+  const rows = await fetchAll<{ reset_at: number }>(ACCOUNT_RESETS, 'reset_at', 'reset_at', userId)
+  return rows?.[0]?.reset_at ?? 0
+}
+
+/**
  * Copies onto `record` any optional field whose column is absent from the pulled `row`
  * (i.e. the table hasn't been migrated), taking the value from the local copy.
  */
@@ -598,6 +633,7 @@ async function reconcileTable(
   tableName: TableName,
   rows: BaseRow[],
   tombstones: Map<string, number>,
+  resetAt: number,
   pendingDeletes: Set<string>,
   restoring: boolean
 ): Promise<{ changed: boolean; outgoing: Outgoing }> {
@@ -606,17 +642,28 @@ async function reconcileTable(
   const outgoing: Outgoing = { tableName, toPush: [], toRevive: [] }
   let changed = false
 
-  /** `true` when the record was deleted elsewhere at or after the given edit time. */
+  /**
+   * `true` when the record was deleted elsewhere at or after the given edit time, either
+   * on its own (a tombstone) or with everything else (an account reset).
+   */
   const deletedSince = (id: string, updatedAt: number) => {
     const deletedAt = tombstones.get(id)
-    return deletedAt !== undefined && deletedAt >= updatedAt
+    return (deletedAt !== undefined && deletedAt >= updatedAt) || updatedAt <= resetAt
   }
 
   if (restoring) {
-    for (const id of local.keys()) {
+    for (const [id, mine] of local) {
       if (tombstones.has(id)) {
         outgoing.toRevive.push(id)
         tombstones.delete(id)
+      }
+      // A backup restored after a reset holds records from before it, which the reset
+      // would delete again. Re-date them so the restore wins here and on other devices.
+      // `resetAt + 1` covers a device whose clock is behind the one that ran the reset.
+      if (mine.updatedAt <= resetAt) {
+        const redated = { ...mine, updatedAt: Math.max(Date.now(), resetAt + 1) }
+        await table.saveLocal(redated)
+        local.set(id, redated)
       }
     }
   }
@@ -624,10 +671,12 @@ async function reconcileTable(
   const cloudIds = new Set<string>()
   for (const row of rows) {
     const record = table.fromRow(row)
-    cloudIds.add(record.id)
     // Deleted here but the delete hasn't reached the cloud yet — don't bring it back.
     if (pendingDeletes.has(record.id)) continue
     if (deletedSince(record.id, record.updatedAt)) continue
+    // Only live rows count as the cloud having a copy; a stale one left from before a
+    // reset must not stop a restored record from being uploaded.
+    cloudIds.add(record.id)
 
     const mine = local.get(record.id)
     if (mine && mine.updatedAt > record.updatedAt) {
@@ -692,8 +741,9 @@ async function pushOutgoing(userId: string, { tableName, toPush, toRevive }: Out
 export async function pullAndHydrate(userId: string): Promise<boolean> {
   if (!isCloudEnabled()) return false
 
-  const [tombstones, ...tableRows] = await Promise.all([
+  const [tombstones, resetAt, ...tableRows] = await Promise.all([
     fetchTombstones(userId),
+    fetchResetAt(userId),
     ...TABLE_NAMES.map((name) => fetchAll<BaseRow>(name, '*', 'id', userId)),
   ])
 
@@ -713,6 +763,7 @@ export async function pullAndHydrate(userId: string): Promise<boolean> {
       tableName,
       rows,
       tombstones.get(tableName) ?? new Map(),
+      resetAt,
       pendingDeletes,
       restoring
     )
@@ -739,7 +790,7 @@ let syncInFlight: Promise<boolean> | null = null
  * must be usable without waiting on the network. Overlapping calls share one run.
  */
 export function syncWithCloud(userId: string): Promise<boolean> {
-  if (!isCloudEnabled()) return Promise.resolve(false)
+  if (!isCloudEnabled() || resetInProgress) return Promise.resolve(false)
   syncInFlight ??= flushQueue(userId)
     .then(() => pullAndHydrate(userId))
     .finally(() => {
@@ -759,11 +810,27 @@ export function markRestorePending() {
 }
 
 /**
+ * Runs a full data reset with sync paused: no new sync or flush starts, and one already
+ * running finishes first, so nothing it pulled is written back after the reset (#12).
+ */
+export async function withSyncPaused<T>(reset: () => Promise<T>): Promise<T> {
+  resetInProgress = true
+  try {
+    await Promise.allSettled([syncInFlight, flushInFlight])
+    return await reset()
+  } finally {
+    resetInProgress = false
+  }
+}
+
+/**
  * Deletes every row this user owns in Supabase and drops any queued retries, for a full
  * "delete all my data" reset. Each row leaves a tombstone behind so the user's other
  * devices clear their copies too, rather than keeping (and later re-uploading) them.
- * Throws if any table fails, so the caller can stop before wiping the local copy and
- * leave the two in step.
+ * Last, it records the reset time, so another device also drops changes it hadn't
+ * uploaded yet (#13). That comes last so a failed delete doesn't announce a reset that
+ * didn't happen. Throws if any step fails, so the caller can stop before wiping the
+ * local copy and leave the two in step. Run it inside {@link withSyncPaused}.
  */
 export async function deleteAllCloudData(userId: string) {
   if (!isCloudEnabled()) return
@@ -782,6 +849,11 @@ export async function deleteAllCloudData(userId: string) {
     const { error } = await supabase.from(tableName).delete().eq('user_id', userId)
     if (error) throw error
   }
+  const { error } = await supabase
+    .from(ACCOUNT_RESETS)
+    .upsert({ user_id: userId, reset_at: deletedAt }, { onConflict: 'user_id' })
+  // A project without the table still gets the deletes, just not this protection.
+  if (error && !isMissingTable(error)) throw error
   clearSyncQueue()
 }
 
