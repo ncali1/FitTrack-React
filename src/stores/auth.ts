@@ -20,7 +20,7 @@ interface AuthState {
   signUp: (email: string, password: string) => Promise<void>
   /** Signs in with email + password. */
   signIn: (email: string, password: string) => Promise<void>
-  /** Signs the current user out. */
+  /** Signs this device out (other devices stay signed in). Throws if it didn't go through. */
   signOut: () => Promise<void>
   /** Sends a "reset your password" email containing a link back to this app. */
   sendPasswordReset: (email: string) => Promise<void>
@@ -90,7 +90,13 @@ export const useAuthStore = create<AuthState>()((set) => ({
   signOut: async () => {
     if (!isCloudEnabled()) return
     const supabase = getSupabase()!
-    await supabase.auth.signOut()
+    // `local` signs out this device only. The default (`global`) revokes every device's
+    // session, which left the others signed out without noticing, and a "delete all my
+    // data" there then skipped the cloud copy (#11).
+    const { error: err } = await supabase.auth.signOut({ scope: 'local' })
+    // Supabase keeps the session when the request fails (e.g. offline), so don't show
+    // the user as signed out while they still are.
+    if (err) throw err
     set({ user: null })
   },
 

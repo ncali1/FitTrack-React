@@ -52,7 +52,7 @@ Prefer a ruled list (`border-y divide-y divide-surface-border`) over a stack of 
 | Modals and sheets | Portal to `document.body`, call `useBodyScrollLock()` while open, close on a backdrop click and on an `X` button with `aria-label="Close"` |
 | Toasts | `sonner`. The `<Toaster>` is mounted in `src/main.tsx`, offset below the top bar. Keep messages short. |
 | Touch first | Tap targets at least 44×44 px, no hover-only affordances, numeric inputs use `inputMode="decimal"` or `"numeric"` |
-| Motion | Short and subtle. The `prefers-reduced-motion` rule in `src/index.css` stops only classes containing `anim-` and `.tilt3d-figure`. Anything else must be covered by hand; today `animate-pop-in`, used on every tab change in `App.tsx`, still plays with reduced motion on. |
+| Motion | Short and subtle. The `prefers-reduced-motion` rule in `src/index.css` stops every class containing `anim-`, the `animate-pop-in` (tab change), `animate-check-bounce` and `animate-celebrate-in` entrances, and `.tilt3d-figure`. Tailwind's `animate-spin` and `animate-pulse` keep running, because they are loading indicators. A new animation class must be added to that rule: `src/index.css.test.ts` fails otherwise. |
 | Accessibility | Real `<button>`s, `aria-pressed` on toggles, a label on every input, `aria-label` on icon-only buttons |
 | Units | Never display a raw stored value. Go through `src/utils/units.ts` and `src/utils/cardio.ts`. |
 | Icons | `lucide-react`, typically `size={18} strokeWidth={2}` |
