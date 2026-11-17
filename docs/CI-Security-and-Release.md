@@ -67,7 +67,7 @@ Leave the two secrets unset and the deployed app is local-only.
 
 Two facts about the current setup worth knowing:
 
-- The deploy workflow runs the CI checks first and only builds and publishes if they pass. It does not wait for the security scans; those block at the PR stage, through the ruleset on `main`.
+- The deploy workflow runs the CI checks first and only builds and publishes if they pass. It does not wait for the security scans. Those are meant to block at the PR stage through the ruleset on `main`, but only once that ruleset is applied (see below). Until then they report and do not block.
 - The site is live at <https://ncali1.github.io/FitTrack-React/>. Pages is set to build from GitHub Actions.
 
 For a fork, the one-time setup is repo Settings → Pages → Source: **GitHub Actions** (`README.md`).
@@ -109,7 +109,9 @@ Verified against the repository files and the GitHub API at the time of writing.
 | `npm audit` (runtime, high and above) | In place (`security.yml`) |
 | Dependency Review on PRs | In place (`security.yml`) |
 | Dependabot version updates | In place (`.github/dependabot.yml`) |
-| Local env files kept out of git | `.gitignore` covers `.env`, `.env.local` and `*.local`, and `.env.example` has names only. A key pasted into a tracked file is caught by gitleaks at the PR, but can still be pushed until GitHub push protection is turned on (see below). |
+| Dependency graph, Dependabot alerts and security updates | On (repo settings) |
+| GitHub secret scanning and push protection | On (repo settings) |
+| Local env files kept out of git | `.gitignore` covers `.env`, `.env.local` and `*.local`, and `.env.example` has names only. A key pasted into a tracked file is blocked at push time by GitHub push protection for known key formats, and caught by gitleaks at the PR. |
 | Row-level security on every cloud table | In place (`supabase/schema.sql`) |
 | Only the public anon key in the client | A configuration rule, not a check. `src/services/supabaseClient.ts` passes whatever `VITE_SUPABASE_ANON_KEY` holds to `createClient`, and Vite embeds it in the public bundle, so a service-role key put there would ship to every visitor. Only ever set the anon key. |
 
@@ -119,13 +121,11 @@ These are repository settings, not files, so they are applied separately (tracke
 
 | Gate | Status |
 | --- | --- |
-| GitHub secret scanning and push protection | Disabled in the repo's security settings |
-| Dependabot alerts and security updates | Security updates disabled |
 | Branch ruleset on `main` (required checks, resolved threads, no force-push or deletion) | Defined in `.github/rulesets/main.json`, not yet applied. Until it is, "CI must pass before merging" is a convention, not an enforced rule. |
 | Squash merge only, auto-delete merged branches | All three merge methods are allowed, and branches are not deleted after merge |
 | AI review (Claude, CodeRabbit) | CodeRabbit is installed as a GitHub App and reviews PRs (it ran on PR #9). There is no Claude review workflow in the repo. |
 
-To apply the ruleset: `gh api -X POST repos/ncali1/FitTrack-React/rulesets --input .github/rulesets/main.json`. Its required checks are the job names above, so renaming a job means updating the ruleset too.
+To apply the ruleset: `gh api -X POST repos/ncali1/FitTrack-React/rulesets --input .github/rulesets/main.json`. Its required checks are the job names above, so renaming a job means updating the ruleset too. The `Analyze` checks pass whenever analysis completes, so the ruleset also has a `code_scanning` rule: a PR that adds a CodeQL security alert of high severity or above, or any error-level alert, cannot merge.
 
 ### When a scanner flags something
 
