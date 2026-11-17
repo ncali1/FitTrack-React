@@ -888,13 +888,39 @@ describe('cloudSync', () => {
       expect(uploadedBeforeReset).toBe(true)
     })
 
-    it('neither queues nor sends a change made while the reset runs', async () => {
+    it('queues but does not send a change made while the reset runs', async () => {
       await withSyncPaused(async () => {
         await syncUpsertExercise('u1', exercise)
+        expect(cloud.tables.exercises).toBeUndefined()
+      })
+
+      expect(queued()).toMatchObject([{ kind: 'upsert', table: 'exercises', id: 'ex1' }])
+    })
+
+    // CodeRabbit on #30: if the reset fails, that change must still reach the cloud.
+    it('uploads a change made during a failed reset on the next flush', async () => {
+      const edited = { ...exercise, updatedAt: 9 }
+      await expect(
+        withSyncPaused(async () => {
+          await syncUpsertExercise('u1', edited)
+          throw new Error('cloud delete failed')
+        })
+      ).rejects.toThrow('cloud delete failed')
+
+      await flushQueue('u1')
+
+      expect(cloudIds('exercises')).toEqual(['ex1'])
+      expect(queued()).toEqual([])
+    })
+
+    it('drops a change made during a reset that succeeds, with the rest of the queue', async () => {
+      await withSyncPaused(async () => {
+        await syncUpsertExercise('u1', exercise)
+        await deleteAllCloudData('u1')
       })
 
       expect(queued()).toEqual([])
-      expect(cloud.tables.exercises).toBeUndefined()
+      expect(cloud.tables.exercises ?? []).toEqual([])
     })
 
     it('lets syncs run again afterwards, even if the reset failed', async () => {

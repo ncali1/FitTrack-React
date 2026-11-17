@@ -429,14 +429,15 @@ async function send(userId: string, op: QueueOp) {
  * and a failed sync must not surface as an unhandled rejection mid-workout.
  */
 async function push(userId: string, op: QueueOp) {
-  // During a full reset the change is part of what is being deleted, locally and in the
-  // cloud, so neither queue nor send it.
-  if (!isCloudEnabled() || resetInProgress) return
+  if (!isCloudEnabled()) return
   try {
     enqueue(op)
   } catch (err) {
     console.error('Failed to queue a change for cloud sync:', err)
   }
+  // Don't send underneath a full reset. The op stays queued: a reset that succeeds clears
+  // the queue with everything else, and one that fails leaves it for the next flush.
+  if (resetInProgress) return
   const sending = send(userId, op)
   directSends.add(sending)
   try {
