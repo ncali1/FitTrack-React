@@ -6,7 +6,7 @@ This page separates **what is in place** from **what is intended**. They are not
 
 ## Workflows
 
-There are two workflow files in `.github/workflows/`.
+There are four workflow files in `.github/workflows/`. Every action is pinned to a commit SHA (with the version in a comment), and every workflow starts from `permissions: contents: read`, with extra permissions granted only to the job that needs them.
 
 ### CI
 
@@ -14,11 +14,25 @@ There are two workflow files in `.github/workflows/`.
 
 | | |
 | --- | --- |
-| Triggers | Push to `main`, pull request into `main` |
+| Triggers | Push to `main`, pull request into `main`, and called by Deploy (`workflow_call`) |
 | Runner | `ubuntu-latest`, Node 24, npm cache |
 | Steps | `npm ci`, `npm run lint`, `npm run test`, `npm run build` |
 
 These are the same three commands as the [definition of done](Getting-Started.md#definition-of-done).
+
+### Security
+
+`.github/workflows/security.yml`, on push to `main` and on PRs into `main`.
+
+| Job (check name) | What it does |
+| --- | --- |
+| `Secret scan (gitleaks)` | Runs the gitleaks CLI (version and SHA-256 pinned) over every commit a PR adds, or the whole history on a push to `main`. The CLI is used instead of `gitleaks-action`, which only scans a PR's first 30 commits. |
+| `SAST (Semgrep)` | `p/default`, `p/typescript` and `p/react` rulesets, in a digest-pinned `semgrep/semgrep` container. Fails on any finding. |
+| `Dependency scan` | `npm audit --omit=dev --audit-level=high` (gating); Dependency Review on PRs, failing on high/critical in any scope; the full `npm audit` in the job summary (not gating). Accepted risks are listed one by one in `allow-ghsas`, each linked to a `security` issue (currently #19). |
+
+### CodeQL
+
+`.github/workflows/codeql.yml`, advanced setup with the `security-extended` queries, for `javascript-typescript` and `actions` (the workflow files themselves). Runs on push, PRs and weekly. Keep CodeQL **Default setup** off: the two conflict.
 
 ### Deploy
 
@@ -27,10 +41,15 @@ These are the same three commands as the [definition of done](Getting-Started.md
 | | |
 | --- | --- |
 | Triggers | Push to `main`, or a manual run (`workflow_dispatch`) |
-| Permissions | `contents: read`, `pages: write`, `id-token: write` |
+| Permissions | `contents: read`; only the deploy job gets `pages: write` and `id-token: write` |
 | Concurrency | Group `pages`, with `cancel-in-progress: true`, so a newer push replaces a deploy in flight |
+| CI job | Runs `ci.yml` (lint, test, build). The build job waits for it, so a commit that fails CI is not published. |
 | Build job | `npm ci`, `npm run build`, upload `dist` as the Pages artifact |
 | Deploy job | `actions/deploy-pages` to the `github-pages` environment |
+
+### Dependabot
+
+`.github/dependabot.yml` opens weekly update PRs for npm and GitHub Actions, after a 7-day cooldown on new releases. React, the Vite toolchain and Capacitor are grouped because their packages must move together. After a Capacitor update, run `npx cap sync` and commit the native changes on the Dependabot branch.
 
 Build-time environment for the deploy:
 
@@ -48,7 +67,7 @@ Leave the two secrets unset and the deployed app is local-only.
 
 Two facts about the current setup worth knowing:
 
-- The deploy workflow is independent of the CI workflow. It does not wait for CI and does not run lint or tests itself. A push to `main` that fails CI is still built and deployed, as long as `npm run build` succeeds.
+- The deploy workflow runs the CI checks first and only builds and publishes if they pass. It does not wait for the security scans. Those are meant to block at the PR stage through the ruleset on `main`, but only once that ruleset is applied (see below). Until then they report and do not block.
 - The site is live at <https://ncali1.github.io/FitTrack-React/>. Pages is set to build from GitHub Actions.
 
 For a fork, the one-time setup is repo Settings → Pages → Source: **GitHub Actions** (`README.md`).
@@ -81,33 +100,32 @@ Verified against the repository files and the GitHub API at the time of writing.
 | Gate | Status |
 | --- | --- |
 | Lint, test and build on every PR | In place (`ci.yml`) |
-| Least-privilege permissions on the deploy workflow | In place (`deploy.yml`) |
-| Local env files kept out of git | `.gitignore` covers `.env`, `.env.local` and `*.local`, and `.env.example` has names only. This only excludes those files: nothing stops a key pasted into a tracked file from being committed, since secret scanning is off (see below). |
+| Deploy gated on CI | In place (`deploy.yml` runs `ci.yml` first) |
+| Least-privilege `permissions` on every workflow | In place |
+| Actions pinned to commit SHAs | In place. Dependabot keeps the pins current. |
+| CodeQL (advanced setup) | In place (`codeql.yml`) |
+| Semgrep | In place (`security.yml`) |
+| gitleaks | In place (`security.yml`) |
+| `npm audit` (runtime, high and above) | In place (`security.yml`) |
+| Dependency Review on PRs | In place (`security.yml`) |
+| Dependabot version updates | In place (`.github/dependabot.yml`) |
+| Dependency graph, Dependabot alerts and security updates | On (repo settings) |
+| GitHub secret scanning and push protection | On (repo settings) |
+| Local env files kept out of git | `.gitignore` covers `.env`, `.env.local` and `*.local`, and `.env.example` has names only. A key pasted into a tracked file is blocked at push time by GitHub push protection for known key formats, and caught by gitleaks at the PR. |
 | Row-level security on every cloud table | In place (`supabase/schema.sql`) |
 | Only the public anon key in the client | A configuration rule, not a check. `src/services/supabaseClient.ts` passes whatever `VITE_SUPABASE_ANON_KEY` holds to `createClient`, and Vite embeds it in the public bundle, so a service-role key put there would ship to every visitor. Only ever set the anon key. |
 
 ### Intended but not set up
 
-The owner's working rules call for the gates below. None of them is configured on this repository yet.
+These are repository settings, not files, so they are applied separately (tracked in #17).
 
-| Gate | What was found |
+| Gate | Status |
 | --- | --- |
-| CodeQL (advanced setup) | No CodeQL workflow file. CodeQL default setup is also not configured. |
-| Semgrep | No workflow or config file |
-| gitleaks | No workflow or config file |
-| GitHub secret scanning and push protection | Both disabled in the repo's security settings |
-| `npm audit` in CI | Not a step in `ci.yml` |
-| Dependency Review | No workflow |
-| Dependabot | No `.github/dependabot.yml`. Dependabot security updates are disabled. |
+| Branch ruleset on `main` (required checks, resolved threads, no force-push or deletion) | Defined in `.github/rulesets/main.json`, not yet applied. Until it is, "CI must pass before merging" is a convention, not an enforced rule. |
+| Squash merge only, auto-delete merged branches | All three merge methods are allowed, and branches are not deleted after merge |
 | AI review (Claude, CodeRabbit) | CodeRabbit is installed as a GitHub App and reviews PRs (it ran on PR #9). There is no Claude review workflow in the repo. |
-| Branch ruleset on `main` (required checks, resolved threads) | No rulesets, and `main` has no branch protection. "CI must pass before merging" is a convention, not an enforced rule. |
-| Squash merge only | All three merge methods are allowed, and recent PRs were merged with merge commits. |
 
-Other things to tighten when the gates are added:
-
-- `ci.yml` has no `permissions` block, so it runs with the repository's default token permissions.
-- Actions are referenced by major version tag (`actions/checkout@v7`), not pinned to a commit SHA.
-- Branches are not deleted automatically after merge.
+To apply the ruleset: `gh api -X POST repos/ncali1/FitTrack-React/rulesets --input .github/rulesets/main.json`. Its required checks are the job names above, so renaming a job means updating the ruleset too. The `Analyze` checks pass whenever analysis completes, so the ruleset also has a `code_scanning` rule: a PR that adds a CodeQL security alert of high severity or above, or any error-level alert, cannot merge.
 
 ### When a scanner flags something
 

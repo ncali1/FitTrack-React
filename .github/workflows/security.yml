@@ -1,0 +1,104 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      # From gitleaks_8.30.1_checksums.txt on the release page.
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The CLI is used instead of gitleaks-action, which only scans the first 30
+      # commits of a PR (it reads one unpaginated page of the PR's commit list).
+      - name: Install gitleaks
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf gitleaks.tar.gz gitleaks
+          rm gitleaks.tar.gz
+
+      # On a PR, scan every commit the PR adds. On a push to main, scan the whole
+      # history: the repo is small, and it also covers force-pushes and new branches
+      # where `github.event.before` is not a usable base.
+      # Event values go through env, not inline `${{ }}`, so they are never parsed
+      # as shell code.
+      - name: Scan for secrets
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -n "$BASE_SHA" ]; then
+            ./gitleaks git --log-opts="${BASE_SHA}..HEAD" --redact --verbose --no-banner
+          else
+            ./gitleaks git --redact --verbose --no-banner
+          fi
+
+  semgrep:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    container:
+      # Pinned by digest so a re-pushed tag cannot change what runs. Bump both together.
+      image: semgrep/semgrep:1.184.0@sha256:cc1b68266f267878b39739373ea9985b9a78e5d64497dd875c8de100b22695ed
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - run: semgrep scan --config p/default --config p/typescript --config p/react --error --metrics off
+
+  dependencies:
+    name: Dependency scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      # Blocks on high/critical advisories in `dependencies`: the code that ends up
+      # in the app users run. Build and test tools live in devDependencies.
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # Blocks a PR that adds or upgrades to a dependency with a known high/critical
+      # advisory, in any scope. Existing advisories in untouched packages don't block.
+      - name: Review dependency changes
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          fail-on-scopes: runtime, development, unknown
+          # Accepted risks only, one advisory per line, each with its tracking issue.
+          # Remove an entry as soon as the issue says it can go.
+          #   GHSA-fc5q-39xc-vjpf: picomatch ReDoS, build tools only, no patch yet (#19)
+          allow-ghsas: GHSA-fc5q-39xc-vjpf
+
+      # Dev-tool advisories (test runner, build plugins) are reported here and fixed
+      # through Dependabot PRs rather than blocking every PR.
+      - name: Report full audit (not gating)
+        if: always()
+        run: |
+          {
+            echo '### npm audit (all dependencies, informational)'
+            echo '```'
+            npm audit || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

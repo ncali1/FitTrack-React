@@ -51,7 +51,7 @@ export function useAppInitialization() {
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') return
       if (result.reason instanceof StorageQuotaError) setError(result.reason.message)
-      else console.error(`Failed to load ${loads[index]![0]}, continuing with empty state:`, result.reason)
+      else console.error('Failed to load %s, continuing with empty state:', loads[index]![0], result.reason)
     })
 
     setIsInitialized(true)
