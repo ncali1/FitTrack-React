@@ -20,6 +20,7 @@ What FitTrack stores, where it goes, and how to remove it. The user-facing polic
 | Body weight entries | IndexedDB | `body_weight_logs` |
 | Email address and password | Not stored by the app | Supabase Auth |
 | Deletion markers | No | `deleted_records` |
+| When you last used "Delete all my data" | No | `account_resets` |
 | Preferences (units, rest timer, sound, vibration, keep awake, reminders, Library layout) | localStorage | Never |
 | When you last backed up, and when you snoozed the reminder | localStorage | Never |
 | An in-progress guided workout | localStorage, until it is finished or replaced. The 12 hours is a resume limit, not a retention limit: an older session is ignored when the app opens, but the stored copy stays until the guided-session state next changes. | Never |
@@ -63,7 +64,8 @@ Browsers can clear a site's stored data when a device runs low on space, or afte
 
 Two details about "Delete all my data" (`src/components/profile/DataAccountCard.tsx`):
 
-- If you are signed **out** when you use it, anything already synced to your account stays there and returns when you sign in. The confirmation says so.
+- If you are signed **out** when you use it, anything already synced to your account stays there and returns when you sign in. The confirmation, the button ("Delete from this device") and the result message all say so.
+- Signed in, it also records when the reset happened (`account_resets`), so your other devices discard their older copies instead of uploading them again. That timestamp is the only thing left in the cloud afterwards, apart from deletion markers.
 - It removes records. It does not remove the Supabase account, and it does not reset per-device preferences.
 
 ## Keeping this page and the policy true
