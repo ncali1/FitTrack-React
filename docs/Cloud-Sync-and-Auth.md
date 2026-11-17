@@ -115,7 +115,11 @@ That does not keep the two fully in step. Tables are cleared one at a time, so a
 - Signing out does not prevent this: `signOut()` leaves the outbox in place.
 - A flush already in progress on another device works from its own copy of the outbox, so it can still upload after the delete. Nothing serialises the delete with other devices' syncs.
 
-The sequence that avoids all three: on each other device, sign out, then run "delete all my data". Signed out, the button skips the cloud and just clears that device's outbox and local data, so it works offline. Last, run it on one device that stays signed in to clear the cloud. Making this safe automatically would need a code change (for example, a per-account reset marker that other devices check before flushing).
+What to do today: run "delete all my data" on **every** device, each one online and showing as signed in. Each run deletes the cloud copy first and then clears that device's outbox, so whichever device goes last leaves the cloud empty. This covers the first two cases. It does not stop a flush that is already running on another device; nothing in the app can cancel that.
+
+Avoid signing devices out as part of this. `signOut()` uses Supabase's default global scope, so signing out one device revokes the other devices' sessions too, and it can fail offline while the app still shows the user as signed out. A device whose session has quietly lapsed has no `user`, so the button skips the cloud step and still reports "All data deleted".
+
+Making this safe automatically needs code changes, for example a per-account reset marker that devices check before flushing, and refusing to report success when the cloud step was skipped.
 
 Deleting all data must also call `clearSyncQueue()`, so deleted records are not re-uploaded later.
 
