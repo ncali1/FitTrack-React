@@ -86,6 +86,10 @@ jobs:
         with:
           fail-on-severity: high
           fail-on-scopes: runtime, development, unknown
+          # Accepted risks only, one advisory per line, each with its tracking issue.
+          # Remove an entry as soon as the issue says it can go.
+          #   GHSA-fc5q-39xc-vjpf: picomatch ReDoS, build tools only, no patch yet (#19)
+          allow-ghsas: GHSA-fc5q-39xc-vjpf
 
       # Dev-tool advisories (test runner, build plugins) are reported here and fixed
       # through Dependabot PRs rather than blocking every PR.

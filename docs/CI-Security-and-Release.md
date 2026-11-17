@@ -28,7 +28,7 @@ These are the same three commands as the [definition of done](Getting-Started.md
 | --- | --- |
 | `Secret scan (gitleaks)` | Runs the gitleaks CLI (version and SHA-256 pinned) over every commit a PR adds, or the whole history on a push to `main`. The CLI is used instead of `gitleaks-action`, which only scans a PR's first 30 commits. |
 | `SAST (Semgrep)` | `p/default`, `p/typescript` and `p/react` rulesets, in a digest-pinned `semgrep/semgrep` container. Fails on any finding. |
-| `Dependency scan` | `npm audit --omit=dev --audit-level=high` (gating); Dependency Review on PRs, failing on high/critical in any scope; the full `npm audit` in the job summary (not gating). |
+| `Dependency scan` | `npm audit --omit=dev --audit-level=high` (gating); Dependency Review on PRs, failing on high/critical in any scope; the full `npm audit` in the job summary (not gating). Accepted risks are listed one by one in `allow-ghsas`, each linked to a `security` issue (currently #19). |
 
 ### CodeQL
 
