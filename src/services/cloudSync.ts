@@ -308,50 +308,35 @@ const TABLE_NAMES = Object.keys(TABLES) as TableName[]
 // ── Outbox ──────────────────────────────────────────────────────────────────
 
 type QueueOp =
-  | { kind: 'upsert'; table: TableName; id: string; userId?: string; payload: SyncRecord }
-  | { kind: 'delete'; table: TableName; id: string; userId?: string; deletedAt: number }
+  | { kind: 'upsert'; table: TableName; id: string; userId: string; payload: SyncRecord }
+  | { kind: 'delete'; table: TableName; id: string; userId: string; deletedAt: number }
 
-/** The queue's shape before it became table-driven, e.g. `{ type: 'upsertExercise', payload }`. */
-interface LegacyQueueOp {
-  type: string
-  payload: SyncRecord
-}
-
-const LEGACY_TABLES: Record<string, TableName> = {
-  Exercise: 'exercises',
-  Routine: 'routines',
-  WorkoutTemplate: 'workout_templates',
-  Session: 'workout_sessions',
-  BodyWeightLog: 'body_weight_logs',
-  CardioSession: 'cardio_sessions',
-}
+/** `true` for an op that says which account it belongs to. */
+const isTaggedOp = (op: unknown): op is QueueOp =>
+  typeof op === 'object' && op !== null && 'kind' in op && typeof (op as { userId?: unknown }).userId === 'string'
 
 /**
- * Converts an op queued by an older version of the app, so retries waiting in someone's
- * localStorage survive the upgrade. Those ops carry no user, and are flushed by whoever
- * is signed in — as they always were.
+ * Reads the outbox, dropping any op that doesn't name its account. Those come from app
+ * versions before ops were tagged (`{ type: 'upsertExercise', payload }`), or were converted
+ * from that shape without a user. Nothing records who queued them, so sending them would
+ * upload one person's data into whichever account is signed in now (#14). Dropping them
+ * loses nothing on the device: an upsert's record is still in IndexedDB and goes up on its
+ * next edit, and a delete can be repeated if the record comes back from the cloud.
  */
-function fromLegacyOp(op: LegacyQueueOp): QueueOp | null {
-  const match = /^(upsert|delete)(.+)$/.exec(op.type)
-  const table = match ? LEGACY_TABLES[match[2]!] : undefined
-  if (!match || !table || !op.payload?.id) return null
-  return match[1] === 'upsert'
-    ? { kind: 'upsert', table, id: op.payload.id, payload: op.payload }
-    : { kind: 'delete', table, id: op.payload.id, deletedAt: Date.now() }
-}
-
 function readQueue(): QueueOp[] {
   try {
     const raw = localStorage.getItem(QUEUE_KEY)
-    const parsed: (QueueOp | LegacyQueueOp)[] = raw ? JSON.parse(raw) : []
-    if (!parsed.some((op) => 'type' in op)) return parsed as QueueOp[]
-
-    const converted = parsed
-      .map((op) => ('type' in op ? fromLegacyOp(op) : op))
-      .filter((op): op is QueueOp => op !== null)
-    // Written straight back so a converted delete keeps one `deletedAt` from here on.
-    writeQueue(converted)
-    return converted
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    if (!Array.isArray(parsed)) {
+      writeQueue([])
+      return []
+    }
+    const tagged = parsed.filter(isTaggedOp)
+    if (tagged.length !== parsed.length) {
+      console.warn('Dropped %d queued sync change(s) with no account', parsed.length - tagged.length)
+      writeQueue(tagged)
+    }
+    return tagged
   } catch {
     return []
   }
@@ -491,7 +476,7 @@ export const syncDeleteCardioSession = (userId: string, id: string) => pushDelet
 let flushInFlight: Promise<void> | null = null
 
 async function sendQueued(userId: string) {
-  const mine = readQueue().filter((op) => op.userId === undefined || op.userId === userId)
+  const mine = readQueue().filter((op) => op.userId === userId)
   for (const op of mine) {
     try {
       await send(userId, op)
