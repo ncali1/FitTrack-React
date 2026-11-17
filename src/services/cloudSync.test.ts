@@ -344,22 +344,45 @@ describe('cloudSync', () => {
       expect(queued()).toEqual([])
     })
 
-    it('still flushes retries queued by a version of the app from before the outbox changed shape', async () => {
+    // #14: nothing records who queued an untagged op, so it must not go into whichever
+    // account happens to be signed in.
+    it('drops untagged retries from older app versions instead of uploading them into the signed-in account', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
       seed('exercises', [exerciseRow])
       localStorage.setItem(
         QUEUE_KEY,
         JSON.stringify([
+          // The shape before the outbox became table-driven.
           { type: 'upsertSession', payload: session },
           { type: 'deleteExercise', payload: { id: 'ex1' } },
+          // The table-driven shape, as converted from the above, still without a user.
+          { kind: 'upsert', table: 'cardio_sessions', id: 'c1', payload: { id: 'c1', updatedAt: 1 } },
         ])
       )
 
-      await flushQueue('u1')
+      await flushQueue('u2')
 
       expect(queued()).toEqual([])
-      expect(cloudIds('workout_sessions')).toEqual(['s1'])
-      expect(cloudIds('exercises')).toEqual([])
-      expect(cloudIds('deleted_records')).toEqual(['ex1'])
+      expect(cloud.tables.workout_sessions).toBeUndefined()
+      expect(cloud.tables.cardio_sessions).toBeUndefined()
+      expect(cloudIds('exercises')).toEqual(['ex1'])
+      expect(cloud.tables.deleted_records).toBeUndefined()
+    })
+
+    it('keeps tagged ops for other accounts when it drops untagged ones', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      cloud.offline = true
+      await syncUpsertSession('u1', session)
+      cloud.offline = false
+      const [tagged] = queued()
+      localStorage.setItem(QUEUE_KEY, JSON.stringify([tagged, { type: 'upsertSession', payload: session }]))
+
+      await flushQueue('u2')
+      expect(queued()).toEqual([tagged])
+
+      await flushQueue('u1')
+      expect(cloud.tables.workout_sessions).toMatchObject([{ id: 's1', user_id: 'u1' }])
+      expect(queued()).toEqual([])
     })
   })
 
