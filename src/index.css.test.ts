@@ -3,6 +3,10 @@
  * defines there must be stopped by it. happy-dom doesn't apply media queries or run CSS
  * animations, so this checks the stylesheet's text rather than rendered behaviour.
  */
+/// <reference types="node" />
+// Node's types for this file only: the app's tsconfig is browser-only. The file is read
+// with fs rather than `import './index.css?raw'`, because Vitest replaces CSS with an
+// empty string unless CSS processing is turned on.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
