@@ -65,7 +65,7 @@ Browsers can clear a site's stored data when a device runs low on space, or afte
 Two details about "Delete all my data" (`src/components/profile/DataAccountCard.tsx`):
 
 - If you are signed **out** when you use it, anything already synced to your account stays there and returns when you sign in. The confirmation, the button ("Delete from this device") and the result message all say so.
-- Signed in, it also records when the reset happened (`account_resets`), so your other devices discard their older copies instead of uploading them again. That timestamp is the only thing left in the cloud afterwards, apart from deletion markers.
+- Signed in, it also records when the reset happened (`account_resets`), so your other devices discard their older copies instead of uploading them again. Afterwards the cloud holds no workout data, only that timestamp, the deletion markers, and your account itself (email and sign-in details in Supabase Auth), which this button does not remove.
 - It removes records. It does not remove the Supabase account, and it does not reset per-device preferences.
 
 ## Keeping this page and the policy true

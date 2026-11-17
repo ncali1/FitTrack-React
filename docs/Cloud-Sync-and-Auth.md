@@ -114,10 +114,12 @@ The button (`src/components/profile/DataAccountCard.tsx`) runs the whole reset i
 | Where | What happens to anything changed before the reset |
 | --- | --- |
 | `flushQueue()` on another device | Queued changes are dropped, not uploaded. The flush reads the marker first; if it cannot read it, it sends nothing and tries again later. |
-| `pullAndHydrate()` | Local records are deleted, and stale cloud rows (uploaded by a device that had not heard of the reset) are ignored. |
-| A flush already running elsewhere | It can still upload, but whatever it uploads is older than the marker, so every pull ignores it. |
+| `pullAndHydrate()` | Local records are deleted. Stale cloud rows (uploaded by a device that had not heard of the reset) are ignored and then removed, so they don't hold a `(user_id, date)` slot that a new workout needs. The removal is filtered on `updated_at <= reset_at` in the database, so a row another device updated in the meantime is left alone. If this device has a newer copy of a stale row, it uploads it in its place. |
+| A flush already running elsewhere | It can still upload, but whatever it uploads is older than the marker, so pulls ignore it and remove it. |
 
 Changes made **after** the reset are unaffected, on any device.
+
+The marker only moves forward. A database trigger (`account_resets_keep_latest`) keeps the greater `reset_at` on update, so if two devices reset at about the same time, the one finishing last can't move it back and re-admit data the later reset discarded.
 
 Two edge cases:
 
