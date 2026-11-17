@@ -51,6 +51,7 @@ vi.mock('./supabaseClient', () => {
     const builder = {
       eq: (column: string, value: unknown) => (filters.push((row) => row[column] === value), builder),
       in: (column: string, values: unknown[]) => (filters.push((row) => values.includes(row[column])), builder),
+      lte: (column: string, value: number) => (filters.push((row) => Number(row[column]) <= value), builder),
       order: (column: string) => ((orderBy = column), builder),
       range: (from: number, to: number) => ((window = [from, to]), builder),
       then: <T>(resolve: (result: ReturnType<typeof run>) => T) => Promise.resolve(run()).then(resolve),
@@ -715,13 +716,69 @@ describe('cloudSync', () => {
       expect(local.sessions.has('s1')).toBe(true)
     })
 
-    it('ignores a stale cloud row that was uploaded from before the reset', async () => {
+    it('ignores a stale cloud row that was uploaded from before the reset, and removes it', async () => {
       seed('exercises', [exerciseRow]) // updated_at 2
       resetAt(5)
 
       await pullAndHydrate('u1')
 
       expect(local.exercises.size).toBe(0)
+      expect(cloud.tables.exercises).toEqual([])
+    })
+
+    it('frees the date a stale session holds, so a new workout that day can upload', async () => {
+      seed('workout_sessions', [sessionRow]) // stale, updated_at 2
+      resetAt(5)
+
+      await pullAndHydrate('u1')
+
+      expect(cloud.tables.workout_sessions).toEqual([])
+    })
+
+    it('does not purge a stale row that another device updates while the pull runs', async () => {
+      seed('exercises', [exerciseRow]) // stale when read
+      resetAt(5)
+      // Just before the purge reaches the database, another device saves a new version.
+      cloud.deleteError = (table) => {
+        if (table === 'exercises') cloud.tables.exercises = [{ ...exerciseRow, user_id: 'u1', updated_at: 9 }]
+        return null
+      }
+
+      await pullAndHydrate('u1')
+
+      expect(cloud.tables.exercises).toMatchObject([{ id: 'ex1', updated_at: 9 }])
+    })
+
+    it('does not purge a row that was updated after the reset', async () => {
+      seed('exercises', [{ ...exerciseRow, updated_at: 9 }])
+      resetAt(5)
+
+      await pullAndHydrate('u1')
+
+      expect(cloudIds('exercises')).toEqual(['ex1'])
+      expect(local.exercises.get('ex1')).toMatchObject({ updatedAt: 9 })
+    })
+
+    // CodeRabbit on #30: saving the newer cloud copy, then judging the stale local one.
+    it('keeps a newer cloud copy that replaces a local record from before the reset', async () => {
+      local.exercises.set('ex1', exercise) // updatedAt 2
+      seed('exercises', [{ ...exerciseRow, updated_at: 9 }])
+      resetAt(5)
+
+      await pullAndHydrate('u1')
+
+      expect(local.exercises.get('ex1')).toMatchObject({ updatedAt: 9 })
+    })
+
+    it('repairs a stale cloud copy with the newer one on this device', async () => {
+      local.exercises.set('ex1', { ...exercise, name: 'Incline Bench', updatedAt: 9 })
+      seed('exercises', [exerciseRow]) // a racing flush re-uploaded version 2
+      resetAt(5)
+
+      await pullAndHydrate('u1')
+
+      expect(cloud.tables.exercises).toMatchObject([{ id: 'ex1', name: 'Incline Bench', updated_at: 9 }])
+      expect(local.exercises.get('ex1')).toMatchObject({ updatedAt: 9 })
     })
 
     it('lets a backup restored afterwards win, re-dating its records so other devices keep them too', async () => {

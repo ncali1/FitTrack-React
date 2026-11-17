@@ -621,6 +621,12 @@ interface Outgoing {
   toPush: SyncRecord[]
   /** Tombstoned ids a backup restore brought back, whose tombstones must go. */
   toRevive: string[]
+  /**
+   * Cloud rows from before an account reset, uploaded by a device that hadn't heard of it.
+   * Pulls ignore them, but they would still hold their `(user_id, date)` slot and block a
+   * new record for that date, so they are removed.
+   */
+  toPurge: string[]
 }
 
 /**
@@ -639,7 +645,7 @@ async function reconcileTable(
 ): Promise<{ changed: boolean; outgoing: Outgoing }> {
   const table = TABLES[tableName]
   const local = new Map((await table.loadLocal()).map((record) => [record.id, record]))
-  const outgoing: Outgoing = { tableName, toPush: [], toRevive: [] }
+  const outgoing: Outgoing = { tableName, toPush: [], toRevive: [], toPurge: [] }
   let changed = false
 
   /**
@@ -673,16 +679,31 @@ async function reconcileTable(
     const record = table.fromRow(row)
     // Deleted here but the delete hasn't reached the cloud yet — don't bring it back.
     if (pendingDeletes.has(record.id)) continue
-    if (deletedSince(record.id, record.updatedAt)) continue
+    const mine = local.get(record.id)
+
+    if (deletedSince(record.id, record.updatedAt)) {
+      if (mine && !deletedSince(record.id, mine.updatedAt)) {
+        // The cloud only has a dead copy, but this device has a live newer one: repair
+        // the cloud with it, since nothing else would upload it.
+        outgoing.toPush.push(mine)
+        cloudIds.add(record.id)
+      } else if (record.updatedAt <= resetAt) {
+        outgoing.toPurge.push(record.id)
+      }
+      continue
+    }
     // Only live rows count as the cloud having a copy; a stale one left from before a
     // reset must not stop a restored record from being uploaded.
     cloudIds.add(record.id)
 
-    const mine = local.get(record.id)
     if (mine && mine.updatedAt > record.updatedAt) {
       outgoing.toPush.push(mine)
     } else if (!mine || mine.updatedAt < record.updatedAt) {
-      await table.saveLocal(keepLocalForMissingColumns(table, row, record, mine))
+      const saved = keepLocalForMissingColumns(table, row, record, mine)
+      await table.saveLocal(saved)
+      // The loop below must judge the copy now on the device, not the one it replaced:
+      // an older local copy may count as deleted when this newer one doesn't.
+      local.set(record.id, saved)
       changed = true
     }
   }
@@ -700,12 +721,25 @@ async function reconcileTable(
 }
 
 /**
- * Uploads what a pull found the cloud was missing. A row that collides with another
- * record for the same date (two devices each logged that day) is skipped rather than
- * failing the batch — the cloud's copy stands.
+ * Uploads what a pull found the cloud was missing, after removing stale rows from before
+ * a reset (so they free their date first). A row that collides with another record for
+ * the same date (two devices each logged that day) is skipped rather than failing the
+ * batch — the cloud's copy stands.
  */
-async function pushOutgoing(userId: string, { tableName, toPush, toRevive }: Outgoing) {
+async function pushOutgoing(userId: string, { tableName, toPush, toRevive, toPurge }: Outgoing, resetAt: number) {
   const supabase = getSupabase()!
+  for (let i = 0; i < toPurge.length; i += ID_CHUNK) {
+    // The `updated_at` filter runs in the database, so a row another device has updated
+    // since this pull read it is left alone.
+    const { error } = await supabase
+      .from(tableName)
+      .delete()
+      .eq('user_id', userId)
+      .in('id', toPurge.slice(i, i + ID_CHUNK))
+      .lte('updated_at', resetAt)
+    if (error) throw error
+  }
+
   for (let i = 0; i < toRevive.length; i += ID_CHUNK) {
     const { error } = await supabase
       .from(TOMBSTONES)
@@ -772,7 +806,7 @@ export async function pullAndHydrate(userId: string): Promise<boolean> {
   }
 
   try {
-    for (const batch of outgoing) await pushOutgoing(userId, batch)
+    for (const batch of outgoing) await pushOutgoing(userId, batch, resetAt)
     localStorage.removeItem(RESTORE_PENDING_KEY)
   } catch (err) {
     // Local data is already up to date; the upload is retried by the next sync.
