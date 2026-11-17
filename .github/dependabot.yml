@@ -1,0 +1,44 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Wait a week before proposing a newly published version: most malicious or broken
+    # releases are caught and pulled within days.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    # Packages that must move together go in one PR, or they fail to install or drift:
+    # react-dom needs the matching react, vitest and the React plugin each need a
+    # specific vite major, and Capacitor's core, CLI and platform packages must share
+    # a version (followed by `npx cap sync`). The first group a package matches wins,
+    # so these come before the catch-all. Security updates need their own groups.
+    groups:
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      vite-toolchain:
+        patterns: ['vite', 'vitest', '@vitest/*', '@vitejs/*', 'vite-plugin-pwa']
+      capacitor:
+        patterns: ['@capacitor/*', '@capacitor-community/*']
+      react-security:
+        applies-to: security-updates
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      vite-toolchain-security:
+        applies-to: security-updates
+        patterns: ['vite', 'vitest', '@vitest/*', '@vitejs/*', 'vite-plugin-pwa']
+      capacitor-security:
+        applies-to: security-updates
+        patterns: ['@capacitor/*', '@capacitor-community/*']
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ['*']
