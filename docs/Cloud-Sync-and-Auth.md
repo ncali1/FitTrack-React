@@ -119,7 +119,11 @@ What to do today: run "delete all my data" on **every** device, each one online 
 
 Avoid signing devices out as part of this. `signOut()` uses Supabase's default global scope, so signing out one device revokes the other devices' sessions too, and it can fail offline while the app still shows the user as signed out. A device whose session has quietly lapsed has no `user`, so the button skips the cloud step and still reports "All data deleted".
 
-Making this safe automatically needs code changes, for example a per-account reset marker that devices check before flushing, and refusing to report success when the cloud step was skipped.
+Making this safe automatically needs code changes:
+
+- a per-account reset marker that devices check before flushing or applying a pull;
+- making delete-all wait for a sync already running on the same device, since a pull that read the cloud before the delete can write its records back after the local clear;
+- refusing to report success when the cloud step was skipped.
 
 Deleting all data must also call `clearSyncQueue()`, so deleted records are not re-uploaded later.
 
