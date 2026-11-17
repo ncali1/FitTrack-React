@@ -99,7 +99,7 @@ The owner's working rules call for the gates below. None of them is configured o
 | `npm audit` in CI | Not a step in `ci.yml` |
 | Dependency Review | No workflow |
 | Dependabot | No `.github/dependabot.yml`. Dependabot security updates are disabled. |
-| AI review (Claude, CodeRabbit) | No config or workflow in the repo. TODO: confirm whether either is installed as a GitHub App, which the repo files cannot show. |
+| AI review (Claude, CodeRabbit) | CodeRabbit is installed as a GitHub App and reviews PRs (it ran on PR #9). There is no Claude review workflow in the repo. |
 | Branch ruleset on `main` (required checks, resolved threads) | No rulesets, and `main` has no branch protection. "CI must pass before merging" is a convention, not an enforced rule. |
 | Squash merge only | All three merge methods are allowed, and recent PRs were merged with merge commits. |
 
