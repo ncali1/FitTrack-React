@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useRoutineStore, selectActiveRoutine } from '@/stores/routine'
 import { useWorkoutTemplatesStore } from '@/stores/workoutTemplates'
 import { useAuthStore } from '@/stores/auth'
+import { reportSignOutFailure } from '@/components/auth/reportSignOutFailure'
 import { ProfileStats } from './ProfileStats'
 import { RoutinesCard } from './RoutinesCard'
 import { ProgramsCard } from './ProgramsCard'
@@ -66,7 +67,7 @@ export function ProfileScreen() {
       <DataAccountCard />
 
       {cloudEnabled && isAuthenticated && (
-        <button className="btn-ghost w-full justify-center" onClick={() => signOut()}>
+        <button className="btn-ghost w-full justify-center" onClick={() => signOut().catch(reportSignOutFailure)}>
           Sign out
         </button>
       )}

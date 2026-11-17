@@ -5,6 +5,7 @@ import { useUIStore } from '@/stores/ui'
 import { useSettingsStore } from '@/stores/settings'
 import { useAuthStore } from '@/stores/auth'
 import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal'
+import { reportSignOutFailure } from '@/components/auth/reportSignOutFailure'
 import { SettingsPage } from '@/components/settings/SettingsPage'
 import { TABS } from './tabs'
 
@@ -36,8 +37,8 @@ export function TopBar() {
   }
 
   const handleSignOut = () => {
-    signOut()
     setShowAccountMenu(false)
+    signOut().catch(reportSignOutFailure)
   }
 
   return (
