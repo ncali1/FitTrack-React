@@ -161,9 +161,19 @@
   animation: tilt3d-spin 4.5s ease-in-out infinite;
 }
 
-/* Respect the OS-level motion preference — freeze every rep-loop and turntable spin to its resting pose. */
+/*
+ * Respect the OS-level motion preference — freeze every rep-loop and turntable spin to its
+ * resting pose, and skip the tab-change, check and PR-toast entrances (they end at their
+ * resting state, so nothing is lost). Tailwind's animate-spin and animate-pulse are left
+ * running on purpose: they are loading indicators, not decoration.
+ * src/index.css.test.ts fails if a new animation class is defined here but not listed.
+ */
 @media (prefers-reduced-motion: reduce) {
-  [class*="anim-"], .tilt3d-figure { animation: none !important; }
+  [class*="anim-"],
+  .animate-pop-in,
+  .animate-check-bounce,
+  .animate-celebrate-in,
+  .tilt3d-figure { animation: none !important; }
 }
 
 :root {

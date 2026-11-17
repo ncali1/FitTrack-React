@@ -145,7 +145,7 @@ Never disable a rule, skip a check or weaken a ruleset to get CI green.
 | Every cloud table is limited to `auth.uid() = user_id` | `supabase/schema.sql` |
 | Password reset does not reveal which emails have accounts | `src/stores/auth.ts`, `src/components/auth/AuthGate.tsx` |
 | Imported backup files are shape-checked before anything is written | `assertBackupShape` in `src/utils/exportData.ts` |
-| The outbox is tagged per user, so queued changes do not upload into another account (except untagged entries left by older app versions; see [Cloud Sync and Auth](Cloud-Sync-and-Auth.md)) | `src/services/cloudSync.ts` |
+| The outbox is tagged per user, so queued changes do not upload into another account. Untagged entries left by older app versions are dropped, not sent (see [Cloud Sync and Auth](Cloud-Sync-and-Auth.md)). | `src/services/cloudSync.ts` |
 | No analytics or third-party tracking | `.kiro/steering/product.md`, `public/privacy.html` |
 
 If a secret is ever committed, it has to be rotated. Deleting it from the repo is not enough, because it stays in history.

@@ -18,6 +18,9 @@ const cloud = vi.hoisted(() => ({
   upserts: [] as { table: string; row: Row }[],
   upsertError: (_table: string, _row: Row): Failure => null,
   deleteError: (_table: string): Failure => null,
+  selectError: (_table: string): Failure => null,
+  /** When set, upserts wait for it before doing anything, to hold a request in flight. */
+  upsertGate: null as Promise<void> | null,
   /** Runs just before an upsert is applied, to simulate things happening mid-request. */
   onUpsert: (_table: string, _row: Row): void => {},
 }))
@@ -33,7 +36,7 @@ vi.mock('./supabaseClient', () => {
     let window: [number, number] | null = null
 
     const run = () => {
-      const error = unavailable(table) ?? (kind === 'delete' ? cloud.deleteError(table) : null)
+      const error = unavailable(table) ?? (kind === 'delete' ? cloud.deleteError(table) : cloud.selectError(table))
       if (error) return { data: null, error }
       const rows = cloud.tables[table] ?? []
       const matching = rows.filter((row) => filters.every((matches) => matches(row)))
@@ -50,6 +53,7 @@ vi.mock('./supabaseClient', () => {
     const builder = {
       eq: (column: string, value: unknown) => (filters.push((row) => row[column] === value), builder),
       in: (column: string, values: unknown[]) => (filters.push((row) => values.includes(row[column])), builder),
+      lte: (column: string, value: number) => (filters.push((row) => Number(row[column]) <= value), builder),
       order: (column: string) => ((orderBy = column), builder),
       range: (from: number, to: number) => ((window = [from, to]), builder),
       then: <T>(resolve: (result: ReturnType<typeof run>) => T) => Promise.resolve(run()).then(resolve),
@@ -62,6 +66,7 @@ vi.mock('./supabaseClient', () => {
     getSupabase: () => ({
       from: (table: string) => ({
         upsert: async (input: Row | Row[], options?: { onConflict: string }) => {
+          if (cloud.upsertGate) await cloud.upsertGate
           const rows = Array.isArray(input) ? input : [input]
           const key = (options?.onConflict ?? 'id').split(',')
           for (const row of rows) {
@@ -143,6 +148,7 @@ import {
   syncWithCloud,
   markRestorePending,
   deleteAllCloudData,
+  withSyncPaused,
 } from './cloudSync'
 
 const QUEUE_KEY = 'fittrack-sync-queue'
@@ -201,6 +207,7 @@ const rejectNewColumns = (_table: string, row: Row) =>
 
 describe('cloudSync', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
     localStorage.clear()
     cloud.tables = {}
     cloud.missing = new Set()
@@ -208,6 +215,8 @@ describe('cloudSync', () => {
     cloud.upserts = []
     cloud.upsertError = () => null
     cloud.deleteError = () => null
+    cloud.selectError = () => null
+    cloud.upsertGate = null
     cloud.onUpsert = () => {}
     for (const map of Object.values(local)) map.clear()
   })
@@ -339,22 +348,45 @@ describe('cloudSync', () => {
       expect(queued()).toEqual([])
     })
 
-    it('still flushes retries queued by a version of the app from before the outbox changed shape', async () => {
+    // #14: nothing records who queued an untagged op, so it must not go into whichever
+    // account happens to be signed in.
+    it('drops untagged retries from older app versions instead of uploading them into the signed-in account', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
       seed('exercises', [exerciseRow])
       localStorage.setItem(
         QUEUE_KEY,
         JSON.stringify([
+          // The shape before the outbox became table-driven.
           { type: 'upsertSession', payload: session },
           { type: 'deleteExercise', payload: { id: 'ex1' } },
+          // The table-driven shape, as converted from the above, still without a user.
+          { kind: 'upsert', table: 'cardio_sessions', id: 'c1', payload: { id: 'c1', updatedAt: 1 } },
         ])
       )
 
-      await flushQueue('u1')
+      await flushQueue('u2')
 
       expect(queued()).toEqual([])
-      expect(cloudIds('workout_sessions')).toEqual(['s1'])
-      expect(cloudIds('exercises')).toEqual([])
-      expect(cloudIds('deleted_records')).toEqual(['ex1'])
+      expect(cloud.tables.workout_sessions).toBeUndefined()
+      expect(cloud.tables.cardio_sessions).toBeUndefined()
+      expect(cloudIds('exercises')).toEqual(['ex1'])
+      expect(cloud.tables.deleted_records).toBeUndefined()
+    })
+
+    it('keeps tagged ops for other accounts when it drops untagged ones', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      cloud.offline = true
+      await syncUpsertSession('u1', session)
+      cloud.offline = false
+      const [tagged] = queued()
+      localStorage.setItem(QUEUE_KEY, JSON.stringify([tagged, { type: 'upsertSession', payload: session }]))
+
+      await flushQueue('u2')
+      expect(queued()).toEqual([tagged])
+
+      await flushQueue('u1')
+      expect(cloud.tables.workout_sessions).toMatchObject([{ id: 's1', user_id: 'u1' }])
+      expect(queued()).toEqual([])
     })
   })
 
@@ -634,12 +666,274 @@ describe('cloudSync', () => {
     })
 
     it('copes with a project that is missing the newer tables', async () => {
-      cloud.missing = new Set(['deleted_records', 'cardio_sessions', 'workout_templates'])
+      cloud.missing = new Set(['deleted_records', 'account_resets', 'cardio_sessions', 'workout_templates'])
       seed('exercises', [exerciseRow])
 
       await deleteAllCloudData('u1')
 
       expect(cloudIds('exercises')).toEqual([])
+    })
+
+    it('records when the account was reset', async () => {
+      vi.spyOn(Date, 'now').mockReturnValue(100)
+
+      await deleteAllCloudData('u1')
+
+      expect(cloud.tables.account_resets).toEqual([{ user_id: 'u1', reset_at: 100 }])
+    })
+
+    it('does not record a reset when a table fails to delete', async () => {
+      seed('exercises', [exerciseRow])
+      cloud.deleteError = (table) => (table === 'exercises' ? { code: '500' } : null)
+
+      await expect(deleteAllCloudData('u1')).rejects.toBeTruthy()
+
+      expect(cloud.tables.account_resets).toBeUndefined()
+    })
+  })
+
+  // #13: another device's unsynced changes must not bring deleted data back.
+  describe('after an account reset on another device', () => {
+    const resetAt = (at: number) => seed('account_resets', [{ reset_at: at }])
+
+    it('drops queued changes made before the reset instead of uploading them', async () => {
+      cloud.offline = true
+      await syncUpsertExercise('u1', exercise) // updatedAt 2
+      cloud.offline = false
+      resetAt(5)
+
+      await flushQueue('u1')
+
+      expect(queued()).toEqual([])
+      expect(cloud.tables.exercises).toBeUndefined()
+    })
+
+    it('still uploads changes made after the reset', async () => {
+      cloud.offline = true
+      await syncUpsertExercise('u1', { ...exercise, updatedAt: 9 })
+      cloud.offline = false
+      resetAt(5)
+
+      await flushQueue('u1')
+
+      expect(queued()).toEqual([])
+      expect(cloudIds('exercises')).toEqual(['ex1'])
+    })
+
+    it('sends nothing and drops nothing when it cannot tell whether a reset happened', async () => {
+      cloud.offline = true
+      await syncUpsertExercise('u1', exercise)
+      cloud.offline = false
+      cloud.selectError = (table) => (table === 'account_resets' ? { code: '500' } : null)
+
+      await flushQueue('u1')
+
+      expect(queued()).toHaveLength(1)
+      expect(cloud.tables.exercises).toBeUndefined()
+    })
+
+    it('deletes local records from before the reset on the next pull, and keeps newer ones', async () => {
+      local.exercises.set('ex1', exercise) // updatedAt 2
+      local.sessions.set('s1', { ...session, updatedAt: 9 })
+      resetAt(5)
+
+      expect(await pullAndHydrate('u1')).toBe(true)
+
+      expect(local.exercises.size).toBe(0)
+      expect(local.sessions.has('s1')).toBe(true)
+    })
+
+    it('ignores a stale cloud row that was uploaded from before the reset, and removes it', async () => {
+      seed('exercises', [exerciseRow]) // updated_at 2
+      resetAt(5)
+
+      await pullAndHydrate('u1')
+
+      expect(local.exercises.size).toBe(0)
+      expect(cloud.tables.exercises).toEqual([])
+    })
+
+    it('frees the date a stale session holds, so a new workout that day can upload', async () => {
+      seed('workout_sessions', [sessionRow]) // stale, updated_at 2
+      resetAt(5)
+
+      await pullAndHydrate('u1')
+
+      expect(cloud.tables.workout_sessions).toEqual([])
+    })
+
+    it('does not purge a stale row that another device updates while the pull runs', async () => {
+      seed('exercises', [exerciseRow]) // stale when read
+      resetAt(5)
+      // Just before the purge reaches the database, another device saves a new version.
+      cloud.deleteError = (table) => {
+        if (table === 'exercises') cloud.tables.exercises = [{ ...exerciseRow, user_id: 'u1', updated_at: 9 }]
+        return null
+      }
+
+      await pullAndHydrate('u1')
+
+      expect(cloud.tables.exercises).toMatchObject([{ id: 'ex1', updated_at: 9 }])
+    })
+
+    it('does not purge a row that was updated after the reset', async () => {
+      seed('exercises', [{ ...exerciseRow, updated_at: 9 }])
+      resetAt(5)
+
+      await pullAndHydrate('u1')
+
+      expect(cloudIds('exercises')).toEqual(['ex1'])
+      expect(local.exercises.get('ex1')).toMatchObject({ updatedAt: 9 })
+    })
+
+    // CodeRabbit on #30: saving the newer cloud copy, then judging the stale local one.
+    it('keeps a newer cloud copy that replaces a local record from before the reset', async () => {
+      local.exercises.set('ex1', exercise) // updatedAt 2
+      seed('exercises', [{ ...exerciseRow, updated_at: 9 }])
+      resetAt(5)
+
+      await pullAndHydrate('u1')
+
+      expect(local.exercises.get('ex1')).toMatchObject({ updatedAt: 9 })
+    })
+
+    it('repairs a stale cloud copy with the newer one on this device', async () => {
+      local.exercises.set('ex1', { ...exercise, name: 'Incline Bench', updatedAt: 9 })
+      seed('exercises', [exerciseRow]) // a racing flush re-uploaded version 2
+      resetAt(5)
+
+      await pullAndHydrate('u1')
+
+      expect(cloud.tables.exercises).toMatchObject([{ id: 'ex1', name: 'Incline Bench', updated_at: 9 }])
+      expect(local.exercises.get('ex1')).toMatchObject({ updatedAt: 9 })
+    })
+
+    it('lets a backup restored afterwards win, re-dating its records so other devices keep them too', async () => {
+      vi.spyOn(Date, 'now').mockReturnValue(50)
+      local.exercises.set('ex1', exercise) // updatedAt 2
+      seed('exercises', [exerciseRow]) // a stale copy from before the reset
+      resetAt(5)
+      markRestorePending()
+
+      await pullAndHydrate('u1')
+
+      expect(local.exercises.get('ex1')).toMatchObject({ updatedAt: 50 })
+      expect(cloud.tables.exercises).toMatchObject([{ id: 'ex1', updated_at: 50 }])
+
+      // Another device pulling now keeps the restored record.
+      local.exercises.clear()
+      await pullAndHydrate('u1')
+      expect(local.exercises.has('ex1')).toBe(true)
+    })
+
+    it('re-dates past the reset even when this device’s clock is behind', async () => {
+      vi.spyOn(Date, 'now').mockReturnValue(3)
+      local.exercises.set('ex1', exercise)
+      resetAt(5)
+      markRestorePending()
+
+      await pullAndHydrate('u1')
+
+      expect(local.exercises.get('ex1')).toMatchObject({ updatedAt: 6 })
+    })
+  })
+
+  // #12: a sync already running must not write records back after a reset clears them.
+  describe('withSyncPaused', () => {
+    it('waits for a sync that is already running before starting the reset', async () => {
+      seed('exercises', [exerciseRow])
+      let syncFinished = false
+      void syncWithCloud('u1').then(() => (syncFinished = true))
+
+      let finishedBeforeReset = false
+      await withSyncPaused(async () => {
+        finishedBeforeReset = syncFinished
+      })
+
+      expect(finishedBeforeReset).toBe(true)
+    })
+
+    it('does not start a sync or a flush while the reset runs', async () => {
+      seed('exercises', [exerciseRow])
+      cloud.offline = true
+      await syncUpsertSession('u1', session)
+      cloud.offline = false
+
+      await withSyncPaused(async () => {
+        expect(await syncWithCloud('u1')).toBe(false)
+        await flushQueue('u1')
+      })
+
+      expect(local.exercises.size).toBe(0)
+      expect(queued()).toHaveLength(1)
+    })
+
+    // CodeRabbit on #30: direct uploads from push() joined neither in-flight promise.
+    it('waits for a direct upload that is already in flight before starting the reset', async () => {
+      let release!: () => void
+      cloud.upsertGate = new Promise((resolve) => (release = resolve))
+      const upload = syncUpsertExercise('u1', exercise)
+
+      let uploadedBeforeReset: boolean | null = null
+      const reset = withSyncPaused(async () => {
+        uploadedBeforeReset = cloudIds('exercises').includes('ex1')
+      })
+      // Give a reset that doesn't wait every chance to run while the upload is held open.
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(uploadedBeforeReset).toBeNull()
+
+      release()
+      await Promise.all([upload, reset])
+
+      expect(uploadedBeforeReset).toBe(true)
+    })
+
+    it('queues but does not send a change made while the reset runs', async () => {
+      await withSyncPaused(async () => {
+        await syncUpsertExercise('u1', exercise)
+        expect(cloud.tables.exercises).toBeUndefined()
+      })
+
+      expect(queued()).toMatchObject([{ kind: 'upsert', table: 'exercises', id: 'ex1' }])
+    })
+
+    // CodeRabbit on #30: if the reset fails, that change must still reach the cloud.
+    it('uploads a change made during a failed reset on the next flush', async () => {
+      const edited = { ...exercise, updatedAt: 9 }
+      await expect(
+        withSyncPaused(async () => {
+          await syncUpsertExercise('u1', edited)
+          throw new Error('cloud delete failed')
+        })
+      ).rejects.toThrow('cloud delete failed')
+
+      await flushQueue('u1')
+
+      expect(cloudIds('exercises')).toEqual(['ex1'])
+      expect(queued()).toEqual([])
+    })
+
+    it('drops a change made during a reset that succeeds, with the rest of the queue', async () => {
+      await withSyncPaused(async () => {
+        await syncUpsertExercise('u1', exercise)
+        await deleteAllCloudData('u1')
+      })
+
+      expect(queued()).toEqual([])
+      expect(cloud.tables.exercises ?? []).toEqual([])
+    })
+
+    it('lets syncs run again afterwards, even if the reset failed', async () => {
+      seed('exercises', [exerciseRow])
+
+      await expect(
+        withSyncPaused(async () => {
+          throw new Error('cloud delete failed')
+        })
+      ).rejects.toThrow('cloud delete failed')
+
+      expect(await syncWithCloud('u1')).toBe(true)
+      expect(local.exercises.has('ex1')).toBe(true)
     })
   })
 })
