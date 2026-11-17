@@ -59,7 +59,7 @@ Each store mutation calls `syncUpsertX` or `syncDeleteX` without awaiting it.
 | Property | Why |
 | --- | --- |
 | One operation per record, the latest | Keeps the outbox small. Only the newest state matters. |
-| Tagged with the user id | A queued change is not uploaded into someone else's account. **Exception:** entries queued by app versions from before tagging carry no user id, and `sendQueued()` sends them under whoever is signed in. If one account left such an entry unsent and a different account then signs in on that device, the record goes to the second account. Only pre-upgrade entries are affected; `push()` always tags new ones. |
+| Tagged with the user id | A queued change is only ever sent by the account that queued it. Entries left by app versions from before tagging carry no user id, so nothing says whose they are: `readQueue()` drops them rather than send them into whoever is signed in. The records themselves stay in IndexedDB. An unsent edit goes up the next time that record changes, and an unsent delete may need repeating if the record comes back from the cloud. |
 | `push()` never throws | Callers do not await it, and a failed sync must not surface as an unhandled rejection mid-workout. |
 | Retried by `flushQueue()` | Runs on app boot (as the first half of `syncWithCloud`) and on the browser's `online` event. |
 
