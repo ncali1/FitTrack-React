@@ -9,6 +9,12 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
+    ignore:
+      # Node's types must match the Node major that CI, the deploy and local dev run on
+      # (node-version: 24 in .github/workflows). Newer types would allow APIs that don't
+      # exist at runtime. Bump this together with node-version, by hand.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     # Packages that must move together go in one PR, or they fail to install or drift:
     # react-dom needs the matching react, vitest and the React plugin each need a
     # specific vite major, and Capacitor's core, CLI and platform packages must share
