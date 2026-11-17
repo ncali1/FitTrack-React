@@ -67,7 +67,7 @@ Leave the two secrets unset and the deployed app is local-only.
 
 Two facts about the current setup worth knowing:
 
-- The deploy workflow runs the CI checks first and only builds and publishes if they pass. It does not wait for the security scans. Those are meant to block at the PR stage through the ruleset on `main`, but only once that ruleset is applied (see below). Until then they report and do not block.
+- The deploy workflow runs the CI checks first and only builds and publishes if they pass. It does not wait for the security scans. Those block at the PR stage instead, through the ruleset on `main` (see below).
 - The site is live at <https://ncali1.github.io/FitTrack-React/>. Pages is set to build from GitHub Actions.
 
 For a fork, the one-time setup is repo Settings → Pages → Source: **GitHub Actions** (`README.md`).
@@ -111,21 +111,27 @@ Verified against the repository files and the GitHub API at the time of writing.
 | Dependabot version updates | In place (`.github/dependabot.yml`) |
 | Dependency graph, Dependabot alerts and security updates | On (repo settings) |
 | GitHub secret scanning and push protection | On (repo settings) |
+| Branch ruleset on `main` | Active ("Protect main", from `.github/rulesets/main.json`). It requires a PR with every check above passing and all review threads resolved, blocks merges that add a high-severity CodeQL alert, and blocks force-pushes and deletion of `main`. |
+| Squash merge only, auto-delete merged branches | On (repo settings) |
 | Local env files kept out of git | `.gitignore` covers `.env`, `.env.local` and `*.local`, and `.env.example` has names only. A key pasted into a tracked file is blocked at push time by GitHub push protection for known key formats, and caught by gitleaks at the PR. |
 | Row-level security on every cloud table | In place (`supabase/schema.sql`) |
 | Only the public anon key in the client | A configuration rule, not a check. `src/services/supabaseClient.ts` passes whatever `VITE_SUPABASE_ANON_KEY` holds to `createClient`, and Vite embeds it in the public bundle, so a service-role key put there would ship to every visitor. Only ever set the anon key. |
 
 ### Intended but not set up
 
-These are repository settings, not files, so they are applied separately (tracked in #17).
-
 | Gate | Status |
 | --- | --- |
-| Branch ruleset on `main` (required checks, resolved threads, no force-push or deletion) | Defined in `.github/rulesets/main.json`, not yet applied. Until it is, "CI must pass before merging" is a convention, not an enforced rule. |
-| Squash merge only, auto-delete merged branches | All three merge methods are allowed, and branches are not deleted after merge |
-| AI review (Claude, CodeRabbit) | CodeRabbit is installed as a GitHub App and reviews PRs (it ran on PR #9). There is no Claude review workflow in the repo. |
+| AI review (Claude, CodeRabbit) | CodeRabbit is installed as a GitHub App and reviews PRs. There is no Claude review workflow in the repo. |
 
-To apply the ruleset: `gh api -X POST repos/ncali1/FitTrack-React/rulesets --input .github/rulesets/main.json`. Its required checks are the job names above, so renaming a job means updating the ruleset too. The `Analyze` checks pass whenever analysis completes, so the ruleset also has a `code_scanning` rule: a PR that adds a CodeQL security alert of high severity or above, or any error-level alert, cannot merge.
+### Changing the ruleset
+
+`.github/rulesets/main.json` is the source of truth. Edit it in a PR, then after merging, push it to GitHub: find the id with `gh api repos/ncali1/FitTrack-React/rulesets`, then `gh api -X PUT repos/ncali1/FitTrack-React/rulesets/<id> --input .github/rulesets/main.json`. Its required checks are the job names above. Renaming a required job takes three steps, because a PR that only renames it can never merge: the old check never reports, and the ruleset isn't updated until after merging.
+
+1. In one PR, add the job under its new name alongside the old one, and merge it.
+2. Change the name in `main.json` and push the ruleset with the `PUT` above.
+3. In a later PR, remove the old job.
+
+The `Analyze` checks pass whenever analysis completes, which is why the ruleset also has a `code_scanning` rule: a PR that adds a CodeQL security alert of high severity or above, or any error-level alert, cannot merge.
 
 ### When a scanner flags something
 
