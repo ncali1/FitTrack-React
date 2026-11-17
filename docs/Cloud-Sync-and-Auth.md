@@ -109,7 +109,13 @@ Anything that writes records to IndexedDB in bulk without going through a store 
 
 That does not keep the two fully in step. Tables are cleared one at a time, so a failure partway through leaves the earlier tables already deleted in the cloud (with tombstones) while the device still has everything. Retrying the delete finishes the job; until then, other devices will drop the records from the tables that were cleared.
 
-Another device that is offline with unsynced changes can also bring data back. Its outbox still holds those upserts, and when it reconnects `flushQueue()` sends them, which recreates the rows in the cloud. A row edited before the deletion stays hidden because its tombstone is newer, but it is stored in the cloud again; a row edited after the deletion reappears everywhere. Run "delete all my data" on the other devices before relying on the cloud deletion: that clears their outboxes. Signing them out does not, because `signOut()` leaves the outbox in place, and it is flushed the next time that account syncs on the device.
+**Other devices can bring data back.** Tombstones only cover rows that are in the cloud when the delete runs. Another device's unsynced changes are not covered:
+
+- Its outbox still holds them, and when that account next syncs there, `flushQueue()` uploads them. A record that was never uploaded before has no tombstone, so it reappears on every device; one that had been uploaded is recreated in the cloud but stays hidden while its tombstone is newer than its last edit.
+- Signing out does not prevent this: `signOut()` leaves the outbox in place.
+- A flush already in progress on another device works from its own copy of the outbox, so it can still upload after the delete. Nothing serialises the delete with other devices' syncs.
+
+The sequence that avoids all three: on each other device, sign out, then run "delete all my data". Signed out, the button skips the cloud and just clears that device's outbox and local data, so it works offline. Last, run it on one device that stays signed in to clear the cloud. Making this safe automatically would need a code change (for example, a per-account reset marker that other devices check before flushing).
 
 Deleting all data must also call `clearSyncQueue()`, so deleted records are not re-uploaded later.
 
