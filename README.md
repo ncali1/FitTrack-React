@@ -188,6 +188,11 @@ push and PR to `main`. A change is done when all three pass.
 [public/privacy.html](./public/privacy.html), linked from the sign-in screen, describes what
 data is stored locally vs. in the cloud (only if you create an account) and how to delete it.
 
+## Documentation
+
+[docs/](./docs/README.md) is the project wiki: a user guide, development setup, architecture,
+data model, cloud sync, native and PWA, testing, and CI and security.
+
 ## Credits
 
 The 3D figure is adapted from [Quaternius](https://quaternius.com/)'s CC0 "Universal Base
