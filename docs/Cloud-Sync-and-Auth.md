@@ -109,7 +109,7 @@ Anything that writes records to IndexedDB in bulk without going through a store 
 
 That does not keep the two fully in step. Tables are cleared one at a time, so a failure partway through leaves the earlier tables already deleted in the cloud (with tombstones) while the device still has everything. Retrying the delete finishes the job; until then, other devices will drop the records from the tables that were cleared.
 
-Another device that is offline with unsynced changes can also bring data back. Its outbox still holds those upserts, and when it reconnects `flushQueue()` sends them, which recreates the rows in the cloud. A row edited before the deletion stays hidden because its tombstone is newer, but it is stored in the cloud again; a row edited after the deletion reappears everywhere. Clear the data on every device, or sign them out, before relying on the cloud deletion.
+Another device that is offline with unsynced changes can also bring data back. Its outbox still holds those upserts, and when it reconnects `flushQueue()` sends them, which recreates the rows in the cloud. A row edited before the deletion stays hidden because its tombstone is newer, but it is stored in the cloud again; a row edited after the deletion reappears everywhere. Run "delete all my data" on the other devices before relying on the cloud deletion: that clears their outboxes. Signing them out does not, because `signOut()` leaves the outbox in place, and it is flushed the next time that account syncs on the device.
 
 Deleting all data must also call `clearSyncQueue()`, so deleted records are not re-uploaded later.
 
